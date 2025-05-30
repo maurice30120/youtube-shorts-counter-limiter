@@ -19,10 +19,10 @@ function resetCounter() {
 }
 
 // Regex pour détecter les URLs YouTube Shorts
-const shortsRegex = /^https?:\/\/(?:www\.)?youtube\.com\/shorts\/.*$/;
+const shortsRegex = /^https?:\/\/(?:www\.|m\.)?youtube\.com\/shorts\/.*$/;
 
 // Regex pour détecter les URLs YouTube
-const youtubeRegex = /^https?:\/\/(?:www\.)?youtube/;
+const youtubeRegex = /^https?:\/\/(?:www\.|m\.)?youtube/;
 
 // Fonction pour vérifier si l'URL est un Short
 function isShortsUrl(url) {

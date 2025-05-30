@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "YouTube Shorts Counter",
-  "version": "1.0",
+  "version": "1.2",
   "description": "Compte le nombre de YouTube Shorts visités",
   "permissions": [
     "webNavigation",
