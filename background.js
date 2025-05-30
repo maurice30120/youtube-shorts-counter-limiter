@@ -18,9 +18,20 @@ function resetCounter() {
   updateBadge(0);
 }
 
+// Regex pour détecter les URLs YouTube Shorts
+const shortsRegex = /^https?:\/\/(?:www\.)?youtube\.com\/shorts\/.*$/;
+
+// Regex pour détecter les URLs YouTube
+const youtubeRegex = /^https?:\/\/(?:www\.)?youtube/;
+
 // Fonction pour vérifier si l'URL est un Short
 function isShortsUrl(url) {
-  return url.includes('www.youtube.com/shorts/');
+  return shortsRegex.test(url);
+}
+
+// Fonction verifier si l'URL est youtube mais ne contien pas shorts
+function isYoutubeUrl(url) {
+  return youtubeRegex.test(url) && !url.includes('shorts');
 }
 
 // Fonction pour incrémenter le compteur
