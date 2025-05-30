@@ -8,8 +8,8 @@ browser.storage.local.get('shortsCount').then((result) => {
 
 // Fonction pour mettre à jour le badge
 function updateBadge(count) {
-  browser.browserAction.setBadgeText({ text: count.toString() });
-  browser.browserAction.setBadgeBackgroundColor({ color: "#FF0000" });
+  browser.action.setBadgeText({ text: count.toString() });
+  browser.action.setBadgeBackgroundColor({ color: "#FF0000" });
 }
 
 // Fonction pour réinitialiser le compteur
@@ -40,7 +40,7 @@ function incrementCounter() {
     const newCount = (result.shortsCount || 0) + 1;
     browser.storage.local.set({ shortsCount: newCount });
     updateBadge(newCount);
-
+console.log(`Compteur Shorts mis à jour: ${newCount}`);
     // Si le compteur dépasse 10, rediriger vers youtube.com
     if (newCount > 10) {
       browser.tabs.query({active: true, currentWindow: true}, function(tabs) {
@@ -75,4 +75,4 @@ browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
       }, 5000);
     }
   }
-}); 
+});
