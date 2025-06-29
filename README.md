@@ -1,39 +1,46 @@
 # YouTube Shorts Counter
 
-Une extension Firefox qui compte le nombre de YouTube Shorts visités et redirige vers youtube.com après 10 Shorts.
+Une extension de navigateur simple et efficace pour vous aider à reprendre le contrôle de votre temps sur YouTube. Elle compte les Shorts que vous visionnez et vous redirige en douceur après avoir atteint une limite fixée.
 
-## Fonctionnalités
+## Table des matières
 
-- Compte le nombre de YouTube Shorts visités
-- Affiche le compteur sur l'icône de l'extension
-- Redirige automatiquement vers youtube.com après 10 Shorts
-- Réinitialise le compteur à chaque nouvel onglet ou redirection
+- [À propos du projet](#à-propos-du-projet)
+- [Fonctionnalités actuelles](#fonctionnalités-actuelles)
+- [Installation](#installation)
+- [Contribuer](#contribuer)
+- [Licence](#licence)
+
+## À propos du projet
+
+Le défilement infini des YouTube Shorts peut être une source de distraction majeure. Cette extension a été créée dans le but de promouvoir une consommation de contenu plus consciente en introduisant une limite douce au nombre de Shorts visionnés par session.
+
+## Fonctionnalités actuelles
+
+- **Compteur de Shorts** : Suit le nombre de vidéos "Shorts" que vous regardez.
+- **Affichage sur l'icône** : Le nombre actuel est visible directement sur l'icône de l'extension.
+- **Redirection automatique** : Après 10 Shorts, vous êtes redirigé vers la page d'accueil de YouTube.
+- **Réinitialisation intelligente** : Le compteur se réinitialise lorsque vous quittez la section Shorts, vous permettant de recommencer plus tard.
 
 ## Installation
 
-1. Clonez ce dépôt
-2. Ouvrez Firefox
-3. Tapez `about:debugging` dans la barre d'adresse
-4. Cliquez sur "Ce Firefox"
-5. Cliquez sur "Charger un module temporaire"
-6. Sélectionnez le fichier `manifest.json` de l'extension
+Pour installer l'extension localement depuis les sources :
 
-## Structure du projet
+1.  Clonez ou téléchargez ce dépôt sur votre machine.
+2.  Ouvrez votre navigateur (testé sur Firefox) :
+    -   Pour **Firefox**, naviguez vers `about:debugging`.
+    -   Pour **Chrome/Edge**, naviguez vers `chrome://extensions`.
+3.  Activez le mode développeur si ce n'est pas déjà fait.
+4.  Cliquez sur "Charger un module temporaire" (Firefox) ou "Charger l'extension non empaquetée" (Chrome).
+5.  Sélectionnez le fichier `manifest.json` à la racine de ce projet.
 
-- `manifest.json` : Configuration de l'extension
-- `background.js` : Logique principale de l'extension
-- `popup.html` : Interface utilisateur de la popup
-- `popup.js` : Logique de la popup
-- `icon.svg` : Icône de l'extension (à convertir en PNG)
+L'icône de l'extension devrait maintenant apparaître dans votre barre d'outils.
 
-## Développement
+## Contribuer
 
-Pour modifier l'extension :
+Les contributions sont les bienvenues ! Si vous souhaitez ajouter une fonctionnalité ou corriger un bug, n'hésitez pas à ouvrir une Pull Request.
 
-1. Modifiez les fichiers source
-2. Rechargez l'extension dans `about:debugging`
-3. Testez les modifications
+Pour des idées sur comment améliorer le projet, consultez notre [**Feuille de route (ROADMAP.md)**](./ROADMAP.md).
 
 ## Licence
 
-MIT 
+Ce projet est distribué sous la licence MIT. Voir le fichier `LICENSE` pour plus d'informations.
