@@ -9,9 +9,11 @@
     "tabs",
     "notifications"
   ],
-"background": {
-  "scripts": ["background.js"]
-},
+  "background": {
+    "scripts": [
+      "background.js"
+    ]
+  },
   "action": {
     "default_popup": "popup.html",
     "default_title": "YouTube Shorts Counter",
@@ -19,6 +21,12 @@
       "16": "icon16.png",
       "32": "icon32.png",
       "48": "icon48.png"
+    }
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "{3399fd77-cc65-4668-8f65-60448ca2073b}",
+      "strict_min_version": "58.0"
     }
   }
 }

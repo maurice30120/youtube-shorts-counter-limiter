@@ -6,6 +6,16 @@ browser.storage.local.get('shortsCount').then((result) => {
   updateBadge(result.shortsCount || 0);
 });
 
+
+// Ajouter une option pour rendre le nombre de Shorts paramétrable
+let maxShorts = 10; // Valeur par défaut
+
+// Charger la valeur depuis le stockage si elle existe
+browser.storage.local.get('maxShorts').then((result) => {
+  if (result.maxShorts) {
+    maxShorts = result.maxShorts;
+  }
+});
 // Fonction pour mettre à jour le badge
 function updateBadge(count) {
   browser.action.setBadgeText({ text: count.toString() });
@@ -36,21 +46,23 @@ function isYoutubeUrl(url) {
 
 // Fonction pour incrémenter le compteur
 function incrementCounter() {
-  browser.storage.local.get('shortsCount').then((result) => {
+  browser.storage.local.get(['shortsCount', 'maxShorts']).then((result) => {
     const newCount = (result.shortsCount || 0) + 1;
+    const currentMaxShorts = result.maxShorts || 10; // Récupérer la valeur actuelle
+    
     browser.storage.local.set({ shortsCount: newCount });
     updateBadge(newCount);
-    console.log(`Compteur Shorts mis à jour: ${newCount}`);
+    console.log(`Compteur Shorts mis à jour: ${newCount}/${currentMaxShorts}`);
 
-    // Ajouter une notification toast au 10ème short
-    // Modifier l'URL pour enlever 'short/xxxx' au lieu de rediriger
-    if (newCount > 10) {
+    // Vérifier si la limite est atteinte
+    if (newCount >= currentMaxShorts) {
       browser.notifications.create({
         type: "basic",
         iconUrl: "icon48.png",
         title: "Limite atteinte",
-        message: "Vous avez regardé 10 Shorts. Redirection vers YouTube..."
+        message: `Vous avez regardé ${currentMaxShorts} Shorts. Redirection vers YouTube...`
       });
+ 
       browser.tabs.query({ active: true, currentWindow: true }, function (tabs) {
         if (tabs[0] && isShortsUrl(tabs[0].url)) {
           resetCounter(); // Réinitialiser le compteur avant la modification de l'URL
@@ -61,6 +73,13 @@ function incrementCounter() {
     }
   });
 }
+
+// Écouter les messages depuis le popup
+browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === 'updateBadge') {
+    updateBadge(message.count);
+  }
+});
 
 // Map pour stocker les URLs déjà comptées
 let countedUrls = new Map();
