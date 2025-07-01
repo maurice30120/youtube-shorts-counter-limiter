@@ -14,6 +14,7 @@ Ce document liste les idées de fonctionnalités et les améliorations potentiel
     -   Mode strict : Redirection immédiate sans possibilité de retour.
     -   Mode doux : Simple avertissement avec possibilité de continuer.
     -   Whitelist : Permettre certains créateurs spécifiques.
+    -   URL de Redirection Personnalisable : Choisir la page de redirection après la limite.
 
 ### 📊 Statistiques et Suivi
 
@@ -24,16 +25,20 @@ Ce document liste les idées de fonctionnalités et les améliorations potentiel
 -   **Historique et Tendances**
     -   Historique des 30 derniers jours.
     -   Export des données en CSV/JSON.
+    -   Historique de consommation hebdomadaire visible dans le popup.
 
 ### 🎨 Interface et Expérience Utilisateur
 
 -   **Thèmes et Personnalisation**
     -   Thèmes sombre/clair.
     -   Couleurs personnalisables pour le badge.
+    -   Badge dynamique : Icône ou texte adapté à l'état (pause, limite atteinte).
 -   **Gamification**
     -   Système de points : Gagner des points en respectant les limites.
     -   Badges/Achievements : "7 jours sans dépasser", "Réduction de 50%".
     -   Streaks : Compter les jours consécutifs de respect des limites.
+-   **Améliorations du Popup**
+    -   Minuteur de pause visible : Afficher un compte à rebours pendant la pause.
 
 ### 🔧 Fonctionnalités Techniques
 
