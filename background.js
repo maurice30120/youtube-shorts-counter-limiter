@@ -172,39 +172,114 @@ browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   });
 });
 
-// --- Suivi du temps de visionnage --- 
-const WATCH_INTERVAL = 5000; // ms
-
-setInterval(() => {
-  console.log('Interval de suivi du temps de visionnage déclenché.'); // New log
-  // Vérifier si la fenêtre du navigateur est active
-  browser.windows.getCurrent({ populate: true }).then((window) => {
-    if (!window.focused) {
-      console.log('Fenêtre non active, pas de suivi du temps.'); // New log
-      return; // Ne rien faire si la fenêtre n'est pas active
+// New function to add debug logs to storage
+function addDebugLog(message) {
+  browser.storage.local.get('debugLogs').then((result) => {
+    const debugLogs = result.debugLogs || [];
+    const timestamp = new Date().toLocaleTimeString();
+    debugLogs.push(`[${timestamp}] ${message}`);
+    // Keep only the last 50 logs to prevent excessive storage use
+    if (debugLogs.length > 50) {
+      debugLogs.shift();
     }
-
-    // Trouver l'onglet actif dans la fenêtre active
-    const activeTab = window.tabs.find(t => t.active);
-    if (!activeTab || !activeTab.url) {
-      console.log('Pas d\'onglet actif ou URL manquante, pas de suivi du temps.'); // New log
-      return;
-    }
-
-    // Vérifier si l'onglet est sur YouTube
-    if (activeTab.url.includes('youtube.com')) {
-      console.log(`Onglet YouTube actif détecté: ${activeTab.url}`); // New log
-      browser.storage.local.get('dailyWatchTime').then((result) => {
-        const dailyWatchTime = result.dailyWatchTime || {};
-        const today = new Date().toISOString().slice(0, 10);
-
-        dailyWatchTime[today] = (dailyWatchTime[today] || 0) + WATCH_INTERVAL;
-
-        browser.storage.local.set({ dailyWatchTime: dailyWatchTime });
-        console.log(`Temps de visionnage YouTube mis à jour pour ${today}: ${dailyWatchTime[today]} ms`); // New log
-      });
-    } else {
-        console.log(`Onglet actif n'est pas YouTube: ${activeTab.url}`); // New log
-    }
+    browser.storage.local.set({ debugLogs: debugLogs });
   });
-}, WATCH_INTERVAL);
+}
+
+let activeYouTubeTabs = {}; // { tabId: startTimeMs }
+
+// Function to process watch time for a tab
+async function processWatchTime(tabId, endTime) {
+  if (activeYouTubeTabs[tabId]) {
+    const startTime = activeYouTubeTabs[tabId];
+    const duration = endTime - startTime;
+
+    if (duration > 0) {
+      addDebugLog(`Tracking stopped for tab ${tabId}. Duration: ${duration} ms.`);
+      const result = await browser.storage.local.get('dailyWatchTime');
+      const dailyWatchTime = result.dailyWatchTime || {};
+      const today = new Date().toISOString().slice(0, 10);
+
+      dailyWatchTime[today] = (dailyWatchTime[today] || 0) + duration;
+      await browser.storage.local.set({ dailyWatchTime: dailyWatchTime });
+      addDebugLog(`Temps de visionnage YouTube mis à jour pour ${today}: ${dailyWatchTime[today]} ms`);
+    }
+    delete activeYouTubeTabs[tabId];
+  }
+}
+
+// Listener for tab activation
+browser.tabs.onActivated.addListener(async (activeInfo) => {
+  // Process time for previously active YouTube tab
+  const allTabs = await browser.tabs.query({});
+  for (const tab of allTabs) {
+    if (tab.id !== activeInfo.tabId && activeYouTubeTabs[tab.id]) {
+      await processWatchTime(tab.id, Date.now());
+    }
+  }
+
+  // Start tracking for newly active tab if it's YouTube
+  const activeTab = await browser.tabs.get(activeInfo.tabId);
+  if (activeTab && activeTab.url && activeTab.url.includes('youtube.com')) {
+    activeYouTubeTabs[activeTab.id] = Date.now();
+    addDebugLog(`Tracking started for tab ${activeTab.id}: ${activeTab.url}`);
+  }
+});
+
+// Listener for tab updates (URL change)
+browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  // If URL changed for a tracked tab, stop tracking
+  if (changeInfo.url && activeYouTubeTabs[tabId]) {
+    await processWatchTime(tabId, Date.now());
+  }
+
+  // If new URL is YouTube, start tracking
+  if (tab.url && tab.url.includes('youtube.com') && !activeYouTubeTabs[tabId]) {
+    activeYouTubeTabs[tabId] = Date.now();
+    addDebugLog(`Tracking started for tab ${tabId}: ${tab.url}`);
+  }
+});
+
+// Listener for tab removal
+browser.tabs.onRemoved.addListener(async (tabId) => {
+  await processWatchTime(tabId, Date.now());
+});
+
+// Listener for window focus changes
+browser.windows.onFocusChanged.addListener(async (windowId) => {
+  if (windowId === browser.windows.WINDOW_ID_NONE) { // Browser lost focus
+    addDebugLog('Browser lost focus. Stopping all active YouTube tab tracking.');
+    for (const tabId in activeYouTubeTabs) {
+      await processWatchTime(tabId, Date.now());
+    }
+  } else { // Browser gained focus
+    addDebugLog('Browser gained focus. Checking active YouTube tabs.');
+    const window = await browser.windows.get(windowId, { populate: true });
+    if (window.focused && window.tabs) {
+      const activeTab = window.tabs.find(t => t.active);
+      if (activeTab && activeTab.url && activeTab.url.includes('youtube.com') && !activeYouTubeTabs[activeTab.id]) {
+        activeYouTubeTabs[activeTab.id] = Date.now();
+        addDebugLog(`Tracking started for tab ${activeTab.id}: ${activeTab.url}`);
+      }
+    }
+  }
+});
+
+// Alarm listener for periodic check (fallback/cleanup)
+browser.alarms.onAlarm.addListener(async (alarm) => {
+  if (alarm.name === 'watchTimeAlarm') {
+    addDebugLog('Watch time alarm triggered.');
+    // This alarm can be used for periodic cleanup or to ensure tracking is active
+    // For now, the tab listeners are more precise.
+    // We can iterate through activeYouTubeTabs and add the elapsed time since last check
+    // This is more complex, so I'll stick to event-driven for now.
+    // The alarm can serve as a heartbeat or a way to re-evaluate active tabs.
+    // For simplicity, I'll just log for now.
+  }
+});
+
+// Schedule the alarm on extension startup
+browser.runtime.onInstalled.addListener(() => {
+  browser.alarms.create('watchTimeAlarm', { periodInMinutes: 0.1 }); // Every 6 seconds
+  addDebugLog('Watch time alarm scheduled on installation.');
+});

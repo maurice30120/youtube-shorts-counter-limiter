@@ -158,6 +158,27 @@ function renderWatchTimeChart() {
   });
 }
 
+function displayDebugLogs() {
+  browser.storage.local.get('debugLogs').then((result) => {
+    const debugLogs = result.debugLogs || [];
+    const logContainer = document.getElementById('debug-logs');
+    logContainer.innerHTML = ''; // Clear previous logs
+
+    if (debugLogs.length === 0) {
+      logContainer.textContent = 'Aucun log disponible.';
+      return;
+    }
+
+    debugLogs.forEach(log => {
+      const logEntry = document.createElement('div');
+      logEntry.textContent = log;
+      logContainer.appendChild(logEntry);
+    });
+    // Scroll to bottom
+    logContainer.scrollTop = logContainer.scrollHeight;
+  });
+}
+
 
 document.addEventListener('DOMContentLoaded', () => {
   // Initial display updates
@@ -165,6 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
   updateSettingsDisplay();
   renderWeeklyChart();
   renderWatchTimeChart();
+  displayDebugLogs(); // Display debug logs on load
 
   // Set up event listeners
   document.getElementById('settings-form').addEventListener('submit', saveSettings);
@@ -178,6 +200,9 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       if (changes.maxShorts || changes.pauseDuration) {
         updateSettingsDisplay();
+      }
+      if (changes.debugLogs) { // Update debug logs if they change
+        displayDebugLogs();
       }
     }
   });
