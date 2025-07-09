@@ -1,4 +1,4 @@
-
+// popup.js
 
 function updateCounter() {
   browser.storage.local.get('shortsCount').then((result) => {
@@ -54,10 +54,63 @@ function handleReset() {
     document.getElementById('counter').textContent = '0';
 }
 
+function renderWeeklyChart() {
+  browser.storage.local.get('dailyCounts').then((result) => {
+    const dailyCounts = result.dailyCounts || {};
+    const labels = [];
+    const data = [];
+
+    // Prepare data for the last 7 days
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateString = d.toISOString().slice(0, 10);
+      
+      const label = d.toLocaleDateString('fr-FR', { month: 'short', day: 'numeric' });
+      
+      labels.push(label);
+      data.push(dailyCounts[dateString] || 0);
+    }
+
+    // Render the chart
+    const ctx = document.getElementById('weekly-chart').getContext('2d');
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Shorts Vus',
+          data: data,
+          backgroundColor: 'rgba(255, 99, 132, 0.2)',
+          borderColor: 'rgba(255, 99, 132, 1)',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              callback: function(value) {if (Number.isInteger(value)) {return value;}}
+            }
+          }
+        },
+        plugins: {
+            legend: {
+                display: false
+            }
+        }
+      }
+    });
+  });
+}
+
+
 document.addEventListener('DOMContentLoaded', () => {
   // Initial display updates
   updateCounter();
   updateSettingsDisplay();
+  renderWeeklyChart();
 
   // Set up event listeners
   document.getElementById('settings-form').addEventListener('submit', saveSettings);

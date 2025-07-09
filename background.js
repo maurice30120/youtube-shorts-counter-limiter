@@ -66,16 +66,28 @@ function redirectToYouTube(tabId, url) {
 
 // Fonction pour incrémenter le compteur
 function incrementCounter() {
-  browser.storage.local.get(['shortsCount', 'maxShorts', 'pauseDuration']).then((result) => {
+  browser.storage.local.get(['shortsCount', 'maxShorts', 'pauseDuration', 'dailyCounts']).then((result) => {
+    // --- Logique pour le compteur de session et la pause ---
     const newCount = (result.shortsCount || 0) + 1;
     const currentMaxShorts = result.maxShorts || 10;
     const currentPauseDuration = result.pauseDuration || 5;
     
-    browser.storage.local.set({ shortsCount: newCount });
-    updateBadge('counting', newCount);
-    console.log(`Compteur Shorts mis à jour: ${newCount}/${currentMaxShorts}`);
+    let dataToStore = { shortsCount: newCount };
 
-    // Vérifier si la limite est atteinte
+    updateBadge('counting', newCount);
+    console.log(`Compteur de session mis à jour: ${newCount}/${currentMaxShorts}`);
+
+    // --- Logique pour l'historique quotidien ---
+    const today = new Date().toISOString().slice(0, 10); // Format YYYY-MM-DD
+    const dailyCounts = result.dailyCounts || {};
+    dailyCounts[today] = (dailyCounts[today] || 0) + 1;
+    dataToStore.dailyCounts = dailyCounts;
+    console.log(`Compteur du jour (${today}): ${dailyCounts[today]}`);
+
+    // --- Sauvegarder les deux données en même temps ---
+    browser.storage.local.set(dataToStore);
+
+    // --- Vérifier si la limite est atteinte ---
     if (newCount >= currentMaxShorts) {
       const pauseUntil = Date.now() + currentPauseDuration * 60 * 1000;
       browser.storage.local.set({ pauseUntil: pauseUntil });

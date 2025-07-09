@@ -5,8 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body {
-      width: 90%;
-      max-width: 300px;
+      width: 400px;
       padding: 15px;
       font-family: Arial, sans-serif;
       font-size: 14px;
@@ -21,7 +20,7 @@
     .settings {
       margin-top: 15px;
     }
-    .settings h4 {
+    .settings h4, h4 {
       margin: 10px 0;
       color: #333;
       font-size: 1.2em;
@@ -71,14 +70,23 @@
   </style>
 </head>
 <body>
-  <h3>YouTube Shorts Counter</h3>
+  <h3>Compteur de Shorts (Session Actuelle)</h3>
   <div class="counter" id="counter">0</div>
+
   <hr>
+
+  <h4>Statistiques (7 derniers jours)</h4>
+  <div style="width: 100%; max-width: 400px;">
+    <canvas id="weekly-chart"></canvas>
+  </div>
+
+  <hr>
+
   <div class="settings">
     <h4>Paramètres</h4>
     <form id="settings-form">
       <div>
-        <label for="max-shorts">Limite de Shorts :</label>
+        <label for="max-shorts">Limite de Shorts par session :</label>
         <input type="number" id="max-shorts" name="max-shorts" min="1" max="100" value="10">
         <p id="current-limit">Limite actuelle: 10</p>
       </div>
@@ -89,9 +97,10 @@
       </div>
       <button type="submit">Sauvegarder</button>
     </form>
-    <button id="reset-counter" class="reset-btn">Remettre à zéro</button>
+    <button id="reset-counter" class="reset-btn">Remettre la session à zéro</button>
   </div>
 
+  <script src="chart.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>
