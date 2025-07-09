@@ -105,12 +105,66 @@ function renderWeeklyChart() {
   });
 }
 
+function renderWatchTimeChart() {
+  browser.storage.local.get('dailyWatchTime').then((result) => {
+    const dailyWatchTime = result.dailyWatchTime || {};
+    const labels = [];
+    const data = [];
+
+    // Prepare data for the last 7 days
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateString = d.toISOString().slice(0, 10);
+      
+      const label = d.toLocaleDateString('fr-FR', { month: 'short', day: 'numeric' });
+      
+      labels.push(label);
+      // Convert ms to minutes for display
+      const timeInMinutes = Math.round((dailyWatchTime[dateString] || 0) / 60000);
+      data.push(timeInMinutes);
+    }
+
+    // Render the chart
+    const ctx = document.getElementById('watch-time-chart').getContext('2d');
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Minutes Vues',
+          data: data,
+          backgroundColor: 'rgba(54, 162, 235, 0.2)',
+          borderColor: 'rgba(54, 162, 235, 1)',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              callback: function(value) { return value + ' min'; }
+            }
+          }
+        },
+        plugins: {
+            legend: {
+                display: false
+            }
+        }
+      }
+    });
+  });
+}
+
 
 document.addEventListener('DOMContentLoaded', () => {
   // Initial display updates
   updateCounter();
   updateSettingsDisplay();
   renderWeeklyChart();
+  renderWatchTimeChart();
 
   // Set up event listeners
   document.getElementById('settings-form').addEventListener('submit', saveSettings);

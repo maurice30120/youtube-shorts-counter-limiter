@@ -171,3 +171,40 @@ browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     }
   });
 });
+
+// --- Suivi du temps de visionnage --- 
+const WATCH_INTERVAL = 5000; // ms
+
+setInterval(() => {
+  console.log('Interval de suivi du temps de visionnage déclenché.'); // New log
+  // Vérifier si la fenêtre du navigateur est active
+  browser.windows.getCurrent({ populate: true }).then((window) => {
+    if (!window.focused) {
+      console.log('Fenêtre non active, pas de suivi du temps.'); // New log
+      return; // Ne rien faire si la fenêtre n'est pas active
+    }
+
+    // Trouver l'onglet actif dans la fenêtre active
+    const activeTab = window.tabs.find(t => t.active);
+    if (!activeTab || !activeTab.url) {
+      console.log('Pas d\'onglet actif ou URL manquante, pas de suivi du temps.'); // New log
+      return;
+    }
+
+    // Vérifier si l'onglet est sur YouTube
+    if (activeTab.url.includes('youtube.com')) {
+      console.log(`Onglet YouTube actif détecté: ${activeTab.url}`); // New log
+      browser.storage.local.get('dailyWatchTime').then((result) => {
+        const dailyWatchTime = result.dailyWatchTime || {};
+        const today = new Date().toISOString().slice(0, 10);
+
+        dailyWatchTime[today] = (dailyWatchTime[today] || 0) + WATCH_INTERVAL;
+
+        browser.storage.local.set({ dailyWatchTime: dailyWatchTime });
+        console.log(`Temps de visionnage YouTube mis à jour pour ${today}: ${dailyWatchTime[today]} ms`); // New log
+      });
+    } else {
+        console.log(`Onglet actif n'est pas YouTube: ${activeTab.url}`); // New log
+    }
+  });
+}, WATCH_INTERVAL);

@@ -9,7 +9,7 @@ Ce document liste les idées de fonctionnalités et les améliorations potentiel
 -   **Gestion du Temps**
     -   Limite par heure/jour : Définir une limite de shorts par heure ou par jour.
     -   Plages horaires : Bloquer les shorts pendant certaines heures (ex: heures de travail).
-    -   Pause programmée : Faire une pause obligatoire de X minutes après avoir atteint la limite.
+    -   Pause programmée : Faire une pause obligatoire de X minutes après avoir atteint la limite. : ok
 -   **Modes de Blocage Personnalisés**
     -   Mode strict : Redirection immédiate sans possibilité de retour.
     -   Mode doux : Simple avertissement avec possibilité de continuer.
