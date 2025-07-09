@@ -1,9 +1,50 @@
 // popup.js
 
 function updateCounter() {
-  browser.storage.local.get('shortsCount').then((result) => {
+  browser.storage.local.get(['shortsCount', 'maxShorts', 'pauseUntil']).then((result) => {
     const count = result.shortsCount || 0;
+    const maxShorts = result.maxShorts || 10;
+    const pauseUntil = result.pauseUntil || 0;
+    
     document.getElementById('counter').textContent = count;
+    
+    // Mettre à jour la barre de progression
+    const progressPercent = Math.min((count / maxShorts) * 100, 100);
+    const progressFill = document.getElementById('progress-fill');
+    if (progressFill) {
+      progressFill.style.width = `${progressPercent}%`;
+    }
+    
+    // Afficher l'état de pause si actif
+    const counterLabel = document.querySelector('.counter-label');
+    if (Date.now() < pauseUntil) {
+      const remainingMinutes = Math.ceil((pauseUntil - Date.now()) / 60000);
+      counterLabel.textContent = `⏸️ Pause en cours (${remainingMinutes} min restantes)`;
+      counterLabel.style.color = '#feca57';
+    } else {
+      counterLabel.textContent = 'Shorts vus cette session';
+      counterLabel.style.color = '';
+    }
+  });
+}
+
+function updateStats() {
+  browser.storage.local.get('dailyCounts').then((result) => {
+    const dailyCounts = result.dailyCounts || {};
+    const today = new Date().toISOString().slice(0, 10);
+    const todayCount = dailyCounts[today] || 0;
+    
+    // Calculer le total de la semaine
+    let weekTotal = 0;
+    for (let i = 0; i < 7; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateString = d.toISOString().slice(0, 10);
+      weekTotal += dailyCounts[dateString] || 0;
+    }
+    
+    document.getElementById('today-count').textContent = todayCount;
+    document.getElementById('week-total').textContent = weekTotal;
   });
 }
 
@@ -12,10 +53,10 @@ function updateSettingsDisplay() {
     const maxShorts = result.maxShorts || 10;
     const pauseDuration = result.pauseDuration || 5;
 
-    document.getElementById('current-limit').textContent = `Limite actuelle: ${maxShorts}`;
+    document.getElementById('current-limit').textContent = `Limite: ${maxShorts} shorts`;
     document.getElementById('max-shorts').value = maxShorts;
 
-    document.getElementById('current-pause').textContent = `Pause actuelle: ${pauseDuration} minutes`;
+    document.getElementById('current-pause').textContent = `Pause: ${pauseDuration} minutes`;
     document.getElementById('pause-duration').value = pauseDuration;
   });
 }
@@ -35,15 +76,18 @@ function saveSettings(event) {
 
   if (Object.keys(settingsToUpdate).length > 0) {
       browser.storage.local.set(settingsToUpdate).then(() => {
+        updateSettingsDisplay();
+        updateCounter(); // Mettre à jour la barre de progression
+        
         const button = document.querySelector('#settings-form button');
         const originalText = button.textContent;
-        button.textContent = 'Sauvegardé!';
-        button.style.background = '#4caf50';
+        button.textContent = '✅ Sauvegardé!';
+        button.style.background = 'linear-gradient(45deg, #4caf50, #45a049)';
 
         setTimeout(() => {
-            button.textContent = 'Sauvegarder';
-            button.style.background = '#1976d2';
-        }, 1500);
+            button.textContent = originalText;
+            button.style.background = 'linear-gradient(45deg, #4facfe, #00f2fe)';
+        }, 2000);
     });
   }
 }
@@ -52,6 +96,11 @@ function handleReset() {
     browser.runtime.sendMessage({ action: 'resetCounter' });
     // Fournir un retour visuel immédiat
     document.getElementById('counter').textContent = '0';
+    const progressFill = document.getElementById('progress-fill');
+    if (progressFill) {
+      progressFill.style.width = '0%';
+    }
+    updateStats();
 }
 
 function renderWeeklyChart() {
@@ -81,24 +130,48 @@ function renderWeeklyChart() {
         datasets: [{
           label: 'Shorts Vus',
           data: data,
-          backgroundColor: 'rgba(255, 99, 132, 0.2)',
-          borderColor: 'rgba(255, 99, 132, 1)',
-          borderWidth: 1
+          backgroundColor: 'rgba(79, 172, 254, 0.3)',
+          borderColor: 'rgba(79, 172, 254, 0.8)',
+          borderWidth: 2,
+          borderRadius: 8,
+          borderSkipped: false,
         }]
       },
       options: {
+        responsive: true,
+        maintainAspectRatio: false,
         scales: {
           y: {
             beginAtZero: true,
             ticks: {
+              color: 'rgba(255, 255, 255, 0.8)',
               callback: function(value) {if (Number.isInteger(value)) {return value;}}
+            },
+            grid: {
+              color: 'rgba(255, 255, 255, 0.1)',
+              borderColor: 'rgba(255, 255, 255, 0.2)'
+            }
+          },
+          x: {
+            ticks: {
+              color: 'rgba(255, 255, 255, 0.8)'
+            },
+            grid: {
+              display: false
             }
           }
         },
         plugins: {
-            legend: {
-                display: false
-            }
+          legend: {
+            display: false
+          },
+          tooltip: {
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            titleColor: 'white',
+            bodyColor: 'white',
+            borderColor: 'rgba(255, 255, 255, 0.2)',
+            borderWidth: 1
+          }
         }
       }
     });
@@ -134,24 +207,55 @@ function renderWatchTimeChart() {
         datasets: [{
           label: 'Minutes Vues',
           data: data,
-          backgroundColor: 'rgba(54, 162, 235, 0.2)',
-          borderColor: 'rgba(54, 162, 235, 1)',
-          borderWidth: 1
+          backgroundColor: 'rgba(255, 202, 87, 0.3)',
+          borderColor: 'rgba(255, 202, 87, 0.8)',
+          borderWidth: 2,
+          borderRadius: 8,
+          borderSkipped: false,
         }]
       },
       options: {
+        responsive: true,
+        maintainAspectRatio: false,
         scales: {
           y: {
             beginAtZero: true,
             ticks: {
-              callback: function(value) { return value + ' min'; }
+              color: 'rgba(255, 255, 255, 0.8)',
+              callback: function(value) {
+                return value + ' min';
+              }
+            },
+            grid: {
+              color: 'rgba(255, 255, 255, 0.1)',
+              borderColor: 'rgba(255, 255, 255, 0.2)'
+            }
+          },
+          x: {
+            ticks: {
+              color: 'rgba(255, 255, 255, 0.8)'
+            },
+            grid: {
+              display: false
             }
           }
         },
         plugins: {
-            legend: {
-                display: false
+          legend: {
+            display: false
+          },
+          tooltip: {
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            titleColor: 'white',
+            bodyColor: 'white',
+            borderColor: 'rgba(255, 255, 255, 0.2)',
+            borderWidth: 1,
+            callbacks: {
+              label: function(context) {
+                return context.parsed.y + ' minutes';
+              }
             }
+          }
         }
       }
     });
@@ -183,10 +287,10 @@ function displayDebugLogs() {
 document.addEventListener('DOMContentLoaded', () => {
   // Initial display updates
   updateCounter();
+  updateStats();
   updateSettingsDisplay();
   renderWeeklyChart();
   renderWatchTimeChart();
-  displayDebugLogs(); // Display debug logs on load
 
   // Set up event listeners
   document.getElementById('settings-form').addEventListener('submit', saveSettings);
@@ -196,14 +300,22 @@ document.addEventListener('DOMContentLoaded', () => {
   browser.storage.onChanged.addListener((changes, area) => {
     if (area === 'local') {
       if (changes.shortsCount) {
-        document.getElementById('counter').textContent = changes.shortsCount.newValue || 0;
+        updateCounter();
+      }
+      if (changes.dailyCounts) {
+        updateStats();
+        renderWeeklyChart();
       }
       if (changes.maxShorts || changes.pauseDuration) {
         updateSettingsDisplay();
-      }
-      if (changes.debugLogs) { // Update debug logs if they change
-        displayDebugLogs();
+        updateCounter(); // Pour mettre à jour la barre de progression
       }
     }
   });
+
+  // Mettre à jour les données toutes les 2 secondes
+  setInterval(() => {
+    updateCounter();
+    updateStats();
+  }, 2000);
 });

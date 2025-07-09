@@ -133,7 +133,7 @@ browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 
     // 1. Gérer la période de pause
     if (Date.now() < pauseUntil) {
-      console.log('Pause active. Redirection...');
+      console.log('Pause active. Vérification si l\'URL est un Short...');
       if (isShortsUrl(changeInfo.url)) {
         const remainingMinutes = Math.ceil((pauseUntil - Date.now()) / 60000);
         browser.notifications.create({
@@ -143,18 +143,22 @@ browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
           message: `Veuillez attendre encore ${remainingMinutes} minutes.`
         });
         redirectToYouTube(tabId, changeInfo.url);
+        return; // Bloquer seulement les Shorts pendant la pause
       }
-      return; // Ne rien faire d'autre pendant la pause
+      // Permettre la navigation normale pendant la pause
+      console.log('Navigation autorisée pendant la pause (pas un Short)');
     }
 
     // 2. Gérer la réinitialisation du compteur
     // Si la pause est terminée et que l'utilisateur navigue hors des Shorts,
     // on réinitialise le compteur et la pause.
     if (pauseUntil > 0 && Date.now() > pauseUntil) {
+        console.log('Pause terminée, réinitialisation du compteur');
         resetCounter();
     }
 
     if (shortsCount > 0 && !isShortsUrl(changeInfo.url)) {
+      console.log('Navigation hors Shorts, réinitialisation du compteur');
       resetCounter();
     }
 
@@ -265,21 +269,6 @@ browser.windows.onFocusChanged.addListener(async (windowId) => {
   }
 });
 
-// Alarm listener for periodic check (fallback/cleanup)
-browser.alarms.onAlarm.addListener(async (alarm) => {
-  if (alarm.name === 'watchTimeAlarm') {
-    addDebugLog('Watch time alarm triggered.');
-    // This alarm can be used for periodic cleanup or to ensure tracking is active
-    // For now, the tab listeners are more precise.
-    // We can iterate through activeYouTubeTabs and add the elapsed time since last check
-    // This is more complex, so I'll stick to event-driven for now.
-    // The alarm can serve as a heartbeat or a way to re-evaluate active tabs.
-    // For simplicity, I'll just log for now.
-  }
-});
+// Tab listeners are sufficient for tracking, no need for alarm-based fallback
 
-// Schedule the alarm on extension startup
-browser.runtime.onInstalled.addListener(() => {
-  browser.alarms.create('watchTimeAlarm', { periodInMinutes: 0.1 }); // Every 6 seconds
-  addDebugLog('Watch time alarm scheduled on installation.');
-});
+// Extension initialization - tab listeners are sufficient for tracking
