@@ -1,63 +1,77 @@
-// Mettre à jour l'affichage du compteur
+
+
 function updateCounter() {
   browser.storage.local.get('shortsCount').then((result) => {
-    document.getElementById('counter').textContent = result.shortsCount || 0;
+    const count = result.shortsCount || 0;
+    document.getElementById('counter').textContent = count;
   });
 }
 
-// Mettre à jour l'affichage de la limite
-function updateLimitDisplay() {
-  browser.storage.local.get('maxShorts').then((result) => {
+function updateSettingsDisplay() {
+  browser.storage.local.get(['maxShorts', 'pauseDuration']).then((result) => {
     const maxShorts = result.maxShorts || 10;
+    const pauseDuration = result.pauseDuration || 5;
+
     document.getElementById('current-limit').textContent = `Limite actuelle: ${maxShorts}`;
     document.getElementById('max-shorts').value = maxShorts;
+
+    document.getElementById('current-pause').textContent = `Pause actuelle: ${pauseDuration} minutes`;
+    document.getElementById('pause-duration').value = pauseDuration;
   });
 }
 
-// Initialisation au chargement
-document.addEventListener('DOMContentLoaded', () => {
-  updateCounter();
-  updateLimitDisplay();
-  
-  // Gestion du bouton reset
-  const resetBtn = document.getElementById('reset-counter');
-  if (resetBtn) {
-    resetBtn.addEventListener('click', () => {
-      browser.storage.local.set({ shortsCount: 0 }).then(() => {
-        updateCounter();
-        // Mettre à jour le badge
-        browser.runtime.sendMessage({ action: 'updateBadge', count: 0 });
-      });
-    });
-  }
-});
+function saveSettings(event) {
+  event.preventDefault();
+  const newMaxShorts = parseInt(document.getElementById('max-shorts').value, 10);
+  const newPauseDuration = parseInt(document.getElementById('pause-duration').value, 10);
 
-// Gestion du formulaire de paramètres
-document.addEventListener('DOMContentLoaded', () => {
-  const form = document.getElementById('settings-form');
-  if (form) {
-    form.addEventListener('submit', (event) => {
-      event.preventDefault();
-      const newValue = parseInt(document.getElementById('max-shorts').value, 10);
-      
-      if (newValue && newValue > 0) {
-        browser.storage.local.set({ maxShorts: newValue }).then(() => {
-          updateLimitDisplay();
-          // Notification visuelle
-          const button = form.querySelector('button');
-          const originalText = button.textContent;
-          button.textContent = 'Sauvegardé!';
-          button.style.background = '#4caf50';
-          
-          setTimeout(() => {
-            button.textContent = originalText;
+  const settingsToUpdate = {};
+  if (newMaxShorts && newMaxShorts > 0) {
+    settingsToUpdate.maxShorts = newMaxShorts;
+  }
+  if (newPauseDuration && newPauseDuration > 0) {
+    settingsToUpdate.pauseDuration = newPauseDuration;
+  }
+
+  if (Object.keys(settingsToUpdate).length > 0) {
+      browser.storage.local.set(settingsToUpdate).then(() => {
+        const button = document.querySelector('#settings-form button');
+        const originalText = button.textContent;
+        button.textContent = 'Sauvegardé!';
+        button.style.background = '#4caf50';
+
+        setTimeout(() => {
+            button.textContent = 'Sauvegarder';
             button.style.background = '#1976d2';
-          }, 1500);
-        });
-      }
+        }, 1500);
     });
   }
-});
+}
 
-// Mettre à jour le compteur toutes les secondes
-setInterval(updateCounter, 1000); 
+function handleReset() {
+    browser.runtime.sendMessage({ action: 'resetCounter' });
+    // Fournir un retour visuel immédiat
+    document.getElementById('counter').textContent = '0';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  // Initial display updates
+  updateCounter();
+  updateSettingsDisplay();
+
+  // Set up event listeners
+  document.getElementById('settings-form').addEventListener('submit', saveSettings);
+  document.getElementById('reset-counter').addEventListener('click', handleReset);
+
+  // Listen for storage changes to keep the UI in sync
+  browser.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local') {
+      if (changes.shortsCount) {
+        document.getElementById('counter').textContent = changes.shortsCount.newValue || 0;
+      }
+      if (changes.maxShorts || changes.pauseDuration) {
+        updateSettingsDisplay();
+      }
+    }
+  });
+});

@@ -43,6 +43,7 @@ function updateBadge(state, value) {
 
 // Fonction pour réinitialiser le compteur
 function resetCounter() {
+  console.log('Compteur réinitialisé. shortsCount et pauseUntil remis à 0.');
   browser.storage.local.set({ shortsCount: 0, pauseUntil: 0 });
   updateBadge('counting', 0);
 }
@@ -98,8 +99,8 @@ function incrementCounter() {
 
 // Écouter les messages depuis le popup
 browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === 'updateBadge') {
-    updateBadge(message.count);
+  if (message.action === 'resetCounter') {
+    resetCounter();
   }
 });
 
@@ -116,9 +117,11 @@ browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   browser.storage.local.get(['pauseUntil', 'shortsCount']).then((result) => {
     const pauseUntil = result.pauseUntil || 0;
     const shortsCount = result.shortsCount || 0;
+    console.log(`Vérification de la pause: Heure actuelle=${Date.now()}, Pause jusqu'à=${pauseUntil}`);
 
     // 1. Gérer la période de pause
     if (Date.now() < pauseUntil) {
+      console.log('Pause active. Redirection...');
       if (isShortsUrl(changeInfo.url)) {
         const remainingMinutes = Math.ceil((pauseUntil - Date.now()) / 60000);
         browser.notifications.create({
