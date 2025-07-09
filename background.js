@@ -1,3 +1,11 @@
+// === IMPORTS ===
+try {
+  importScripts('improvements.js');
+  importScripts('blocking-modes.js');
+} catch (error) {
+  console.warn('Could not import scripts:', error);
+}
+
 // Initialiser le compteur si nécessaire
 browser.storage.local.get(['shortsCount', 'pauseUntil']).then((result) => {
   if (!result.shortsCount) {
@@ -11,6 +19,95 @@ browser.storage.local.get(['shortsCount', 'pauseUntil']).then((result) => {
   }
 });
 
+// === ACHIEVEMENTS SYSTEM ===
+const achievements = {
+  FIRST_DAY: { 
+    id: 'first_day', 
+    name: 'Premier Jour', 
+    description: 'Première limite respectée !',
+    icon: '🌟'
+  },
+  WEEK_CLEAN: { 
+    id: 'week_clean', 
+    name: '7 Jours Clean', 
+    description: '7 jours consécutifs sans dépasser',
+    icon: '🔥'
+  },
+  MONTH_CLEAN: { 
+    id: 'month_clean', 
+    name: 'Mois Parfait', 
+    description: '30 jours consécutifs sans dépasser',
+    icon: '👑'
+  },
+  SPEED_DEMON: {
+    id: 'speed_demon',
+    name: 'Speed Demon',
+    description: 'Plus de 50 shorts en une journée',
+    icon: '⚡'
+  },
+  EARLY_BIRD: {
+    id: 'early_bird',
+    name: 'Lève-tôt',
+    description: '5 jours d\'affilée avec limit respectée avant 18h',
+    icon: '🌅'
+  }
+};
+
+function checkAchievements() {
+  browser.storage.local.get([
+    'currentStreak', 
+    'unlockedAchievements', 
+    'dailyCounts',
+    'maxShorts'
+  ]).then((result) => {
+    const streak = result.currentStreak || 0;
+    const unlocked = result.unlockedAchievements || [];
+    const dailyCounts = result.dailyCounts || {};
+    const maxShorts = result.maxShorts || 10;
+    const today = new Date().toISOString().slice(0, 10);
+    const todayCount = dailyCounts[today] || 0;
+    
+    // Achievement: Premier Jour
+    if (streak >= 1 && !unlocked.includes('first_day')) {
+      unlockAchievement('first_day');
+    }
+    
+    // Achievement: 7 Jours Clean
+    if (streak >= 7 && !unlocked.includes('week_clean')) {
+      unlockAchievement('week_clean');
+    }
+    
+    // Achievement: Mois Parfait
+    if (streak >= 30 && !unlocked.includes('month_clean')) {
+      unlockAchievement('month_clean');
+    }
+    
+    // Achievement: Speed Demon
+    if (todayCount >= 50 && !unlocked.includes('speed_demon')) {
+      unlockAchievement('speed_demon');
+    }
+  });
+}
+
+function unlockAchievement(achievementId) {
+  browser.storage.local.get('unlockedAchievements').then((result) => {
+    const unlocked = result.unlockedAchievements || [];
+    if (!unlocked.includes(achievementId)) {
+      unlocked.push(achievementId);
+      browser.storage.local.set({ unlockedAchievements: unlocked });
+      
+      const achievement = achievements[achievementId.toUpperCase()];
+      browser.notifications.create({
+        type: "basic",
+        iconUrl: "icon48.png",
+        title: `🏆 Achievement Débloqué !`,
+        message: `${achievement.icon} ${achievement.name}: ${achievement.description}`
+      });
+      
+      console.log(`Achievement unlocked: ${achievement.name}`);
+    }
+  });
+}
 
 // Ajouter une option pour rendre le nombre de Shorts paramétrable
 let maxShorts = 10; // Valeur par défaut
@@ -57,9 +154,21 @@ function isShortsUrl(url) {
 }
 
 // Fonction de redirection centralisée
-function redirectToYouTube(tabId, url) {
+async function redirectToYouTube(tabId, url) {
   if (isShortsUrl(url)) {
-    const newUrl = url.replace(/\/shorts\/[^\/]+/, '');
+    const platformInfo = await browser.runtime.getPlatformInfo();
+    let newUrl;
+
+    if (platformInfo.os === 'android' || platformInfo.os === 'ios') {
+      // Mobile OS: Redirect to mobile YouTube feed
+      newUrl = 'https://m.youtube.com/feed/subscriptions'; // Or trending, etc.
+      addDebugLog(`Redirection mobile: ${url} -> ${newUrl}`);
+    } else {
+      // Desktop OS: Redirect to main YouTube page (or try to find full video URL)
+      // For now, keep it simple: redirect to main YouTube
+      newUrl = url.replace(/\/shorts\/[^\/]+/, '');
+      addDebugLog(`Redirection desktop: ${url} -> ${newUrl}`);
+    }
     browser.tabs.update(tabId, { url: newUrl });
   }
 }
@@ -87,23 +196,46 @@ function incrementCounter() {
     // --- Sauvegarder les deux données en même temps ---
     browser.storage.local.set(dataToStore);
 
+    // --- Démarrer le timer de visionnage ---
+    startWatchTimer();
+
+    // --- Vérifier les achievements ---
+    checkAchievements();
+
     // --- Vérifier si la limite est atteinte ---
     if (newCount >= currentMaxShorts) {
-      const pauseUntil = Date.now() + currentPauseDuration * 60 * 1000;
-      browser.storage.local.set({ pauseUntil: pauseUntil });
-      updateBadge('paused');
+      // Arrêter le timer de visionnage
+      endWatchTimer();
+      
+      // Réinitialiser le streak car limite dépassée
+      checkAndResetStreak();
+      
+      // Appliquer le mode de blocage configuré
+      applyAdvancedBlocking(newCount, currentMaxShorts, currentPauseDuration);
+    }
+  });
+}
 
+// Fonction pour vérifier et réinitialiser le streak si limite dépassée
+function checkAndResetStreak() {
+  browser.storage.local.get(['maxShorts', 'dailyCounts', 'currentStreak']).then((result) => {
+    const maxShorts = result.maxShorts || 10;
+    const dailyCounts = result.dailyCounts || {};
+    const currentStreak = result.currentStreak || 0;
+    const today = new Date().toISOString().slice(0, 10);
+    const todayCount = dailyCounts[today] || 0;
+    
+    if (todayCount >= maxShorts && currentStreak > 0) {
+      // Reset du streak car limite dépassée
+      browser.storage.local.set({ currentStreak: 0 });
+      console.log('Limite dépassée aujourd\'hui - Streak réinitialisé');
+      
+      // Notification de streak perdu
       browser.notifications.create({
         type: "basic",
         iconUrl: "icon48.png",
-        title: "Limite atteinte",
-        message: `Vous avez regardé ${currentMaxShorts} Shorts. Pause de ${currentPauseDuration} minutes.`
-      });
- 
-      browser.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-        if (tabs[0]) {
-          redirectToYouTube(tabs[0].id, tabs[0].url);
-        }
+        title: "💔 Streak perdu",
+        message: `Votre streak de ${currentStreak} jours s'arrête ici. Vous pouvez recommencer demain !`
       });
     }
   });
@@ -136,13 +268,9 @@ browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
       console.log('Pause active. Vérification si l\'URL est un Short...');
       if (isShortsUrl(changeInfo.url)) {
         const remainingMinutes = Math.ceil((pauseUntil - Date.now()) / 60000);
-        browser.notifications.create({
-          type: "basic",
-          iconUrl: "icon48.png",
-          title: "Pause en cours",
-          message: `Veuillez attendre encore ${remainingMinutes} minutes.`
-        });
-        redirectToYouTube(tabId, changeInfo.url);
+        
+        // Appliquer le blocage selon le mode configuré
+        applyPauseBlocking(tabId, changeInfo.url, remainingMinutes);
         return; // Bloquer seulement les Shorts pendant la pause
       }
       // Permettre la navigation normale pendant la pause
@@ -155,11 +283,7 @@ browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (pauseUntil > 0 && Date.now() > pauseUntil) {
         console.log('Pause terminée, réinitialisation du compteur');
         resetCounter();
-    }
-
-    if (shortsCount > 0 && !isShortsUrl(changeInfo.url)) {
-      console.log('Navigation hors Shorts, réinitialisation du compteur');
-      resetCounter();
+        return;
     }
 
     // 3. Gérer le comptage des nouveaux Shorts
@@ -172,6 +296,9 @@ browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
           countedUrls.delete(changeInfo.url);
         }, 5000); // Évite de compter plusieurs fois la même URL rapidement
       }
+    } else {
+      // Si on quitte les shorts, arrêter le timer
+      endWatchTimer();
     }
   });
 });
@@ -269,6 +396,162 @@ browser.windows.onFocusChanged.addListener(async (windowId) => {
   }
 });
 
-// Tab listeners are sufficient for tracking, no need for alarm-based fallback
+// === WATCH TIME TRACKING ===
+let shortStartTime = null;
+
+function startWatchTimer() {
+  shortStartTime = Date.now();
+}
+
+function endWatchTimer() {
+  if (shortStartTime) {
+    const watchDuration = Date.now() - shortStartTime;
+    addWatchTime(watchDuration);
+    shortStartTime = null;
+  }
+}
+
+function addWatchTime(duration) {
+  browser.storage.local.get(['dailyWatchTime', 'totalWatchTime']).then((result) => {
+    const today = new Date().toISOString().slice(0, 10);
+    const dailyWatchTime = result.dailyWatchTime || {};
+    const totalWatchTime = result.totalWatchTime || 0;
+    
+    dailyWatchTime[today] = (dailyWatchTime[today] || 0) + duration;
+    
+    browser.storage.local.set({ 
+      dailyWatchTime, 
+      totalWatchTime: totalWatchTime + duration 
+    });
+    
+    // Calculer et mettre à jour le temps moyen
+    calculateAverageWatchTime();
+  });
+}
+
+function calculateAverageWatchTime() {
+  browser.storage.local.get(['dailyWatchTime', 'dailyCounts']).then((result) => {
+    const dailyWatchTime = result.dailyWatchTime || {};
+    const dailyCounts = result.dailyCounts || {};
+    
+    let totalTime = 0;
+    let totalShorts = 0;
+    
+    Object.keys(dailyWatchTime).forEach(date => {
+      totalTime += dailyWatchTime[date] || 0;
+      totalShorts += dailyCounts[date] || 0;
+    });
+    
+    const avgTimePerShort = totalShorts > 0 ? totalTime / totalShorts : 0;
+    browser.storage.local.set({ avgTimePerShort });
+    
+    console.log(`Average time per short: ${Math.round(avgTimePerShort / 1000)}s`);
+  });
+}
+
+// Fonction pour appliquer le blocage avancé selon le mode configuré
+async function applyAdvancedBlocking(newCount, maxShorts, pauseDuration) {
+  try {
+    // Récupérer le mode de blocage configuré
+    const result = await browser.storage.local.get(['blockingMode']);
+    const blockingMode = result.blockingMode || 'standard';
+    
+    console.log(`Limite atteinte (${newCount}/${maxShorts}) - Application du mode: ${blockingMode}`);
+    
+    // Préparer le contexte pour le gestionnaire de blocage
+    const context = {
+      currentCount: newCount,
+      maxShorts: maxShorts,
+      pauseDuration: pauseDuration,
+      limitExceeded: true,
+      title: "🚫 Limite atteinte",
+      message: `Vous avez atteint votre limite de ${maxShorts} Shorts`,
+      count: newCount
+    };
+    
+    // Appliquer le mode de blocage via le gestionnaire
+    if (typeof BlockingModeManager !== 'undefined') {
+      await BlockingModeManager.applyBlockingMode(blockingMode, context);
+    } else {
+      // Fallback si le gestionnaire n'est pas disponible
+      console.warn('BlockingModeManager non disponible, utilisation du blocage standard');
+      const pauseUntil = Date.now() + pauseDuration * 60 * 1000;
+      await browser.storage.local.set({ pauseUntil });
+      updateBadge('paused');
+    }
+  } catch (error) {
+    console.error('Erreur lors de l\'application du blocage avancé:', error);
+  }
+}
+
+// Fonction pour appliquer le blocage pendant la pause
+async function applyPauseBlocking(tabId, url, remainingMinutes) {
+  try {
+    // Récupérer le mode de blocage configuré
+    const result = await browser.storage.local.get(['blockingMode']);
+    const blockingMode = result.blockingMode || 'standard';
+    
+    console.log(`Blocage pendant pause (${remainingMinutes} min restantes) - Mode: ${blockingMode}`);
+    
+    // Préparer le contexte pour le gestionnaire de blocage
+    const context = {
+      tabId: tabId,
+      url: url,
+      originalUrl: url,
+      remainingMinutes: remainingMinutes,
+      isPause: true,
+      title: "⏸️ Pause en cours",
+      message: `Veuillez attendre encore ${remainingMinutes} minutes`
+    };
+    
+    // Appliquer le mode de blocage via le gestionnaire
+    if (typeof BlockingModeManager !== 'undefined') {
+      await BlockingModeManager.applyBlockingMode(blockingMode, context);
+    } else {
+      // Fallback si le gestionnaire n'est pas disponible
+      console.warn('BlockingModeManager non disponible, utilisation du blocage standard');
+      browser.notifications.create({
+        type: "basic",
+        iconUrl: "icon48.png",
+        title: "Pause en cours",
+        message: `Veuillez attendre encore ${remainingMinutes} minutes.`
+      });
+      redirectToYouTube(tabId, url);
+    }
+    
+    // S'assurer que le badge reste en mode pause
+    updateBadge('paused');
+  } catch (error) {
+    console.error('Erreur lors de l\'application du blocage pendant la pause:', error);
+    // Fallback en cas d'erreur
+    redirectToYouTube(tabId, url);
+  }
+}
+
+// Vérification périodique de l'état de pause
+function checkPauseStatus() {
+  browser.storage.local.get(['pauseUntil']).then((result) => {
+    const pauseUntil = result.pauseUntil || 0;
+    const now = Date.now();
+    
+    if (pauseUntil > 0) {
+      if (now < pauseUntil) {
+        // Pause toujours active
+        updateBadge('paused');
+        console.log(`Pause active jusqu'à: ${new Date(pauseUntil).toLocaleTimeString()}`);
+      } else {
+        // Pause expirée, nettoyer et réinitialiser
+        console.log('Pause expirée, nettoyage...');
+        browser.storage.local.set({ pauseUntil: 0 });
+        browser.storage.local.get(['shortsCount']).then((countResult) => {
+          updateBadge('counting', countResult.shortsCount || 0);
+        });
+      }
+    }
+  });
+}
+
+// Vérifier l'état de pause toutes les 30 secondes
+setInterval(checkPauseStatus, 30000);
 
 // Extension initialization - tab listeners are sufficient for tracking

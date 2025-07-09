@@ -45,6 +45,9 @@ module.exports = (env, argv) => {
           { from: 'background.js', to: 'background.js' }, // Copy background.js
           { from: 'popup.html', to: 'popup.html' }, // Copy notre popup.html avec glass design
           { from: 'popup.js', to: 'popup.js' }, // Copy popup.js
+          { from: 'improvements.js', to: 'improvements.js' }, // Copy improvements.js
+          { from: 'blocking-modes.js', to: 'blocking-modes.js' }, // Copy blocking-modes.js
+          { from: 'blocked.html', to: 'blocked.html' }, // Copy blocked.html
         ],
       }),
     ],

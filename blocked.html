@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🔒 Blocage Actif - YouTube Shorts Counter</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+    }
+
+    .blocked-container {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 20px;
+      padding: 40px;
+      text-align: center;
+      max-width: 500px;
+      margin: 20px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+
+    .block-icon {
+      font-size: 4em;
+      margin-bottom: 20px;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+
+    h1 {
+      font-size: 2em;
+      margin-bottom: 15px;
+      background: linear-gradient(45deg, #ff6b6b, #feca57);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .message {
+      font-size: 1.1em;
+      margin-bottom: 30px;
+      opacity: 0.9;
+      line-height: 1.5;
+    }
+
+    .timer {
+      font-size: 1.5em;
+      font-weight: bold;
+      color: #4facfe;
+      margin-bottom: 30px;
+    }
+
+    .alternatives {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 15px;
+      padding: 20px;
+      margin: 20px 0;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .alternatives h3 {
+      margin-bottom: 15px;
+      color: #4facfe;
+    }
+
+    .alternative-link {
+      display: inline-block;
+      background: linear-gradient(45deg, #4facfe, #00f2fe);
+      color: white;
+      text-decoration: none;
+      padding: 10px 20px;
+      border-radius: 25px;
+      margin: 5px;
+      transition: all 0.3s ease;
+      font-weight: 500;
+    }
+
+    .alternative-link:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px rgba(79, 172, 254, 0.3);
+      background: linear-gradient(45deg, #00f2fe, #4facfe);
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin: 20px 0;
+    }
+
+    .stat-item {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 10px;
+      padding: 15px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .stat-value {
+      font-size: 1.3em;
+      font-weight: bold;
+      color: #feca57;
+    }
+
+    .stat-label {
+      font-size: 0.9em;
+      opacity: 0.7;
+      margin-top: 5px;
+    }
+
+    .motivational-quote {
+      font-style: italic;
+      opacity: 0.8;
+      margin: 20px 0;
+      padding: 15px;
+      border-left: 3px solid #4facfe;
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .breathing-exercise {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 15px;
+      padding: 20px;
+      margin: 20px 0;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .breathing-circle {
+      width: 100px;
+      height: 100px;
+      border: 2px solid #4facfe;
+      border-radius: 50%;
+      margin: 20px auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: breathe 4s infinite;
+    }
+
+    @keyframes breathe {
+      0%, 100% { transform: scale(1); opacity: 0.7; }
+      50% { transform: scale(1.2); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="blocked-container">
+    <div class="block-icon">🔒</div>
+    <h1>Accès Bloqué</h1>
+    <div class="message">
+      Vous avez atteint votre limite de Shorts pour cette session. 
+      Prenez une pause et revenez dans quelques minutes !
+    </div>
+    
+    <div class="timer" id="countdown-timer">
+      Temps restant: --:--
+    </div>
+
+    <div class="stats">
+      <div class="stat-item">
+        <div class="stat-value" id="shorts-watched">--</div>
+        <div class="stat-label">Shorts vus aujourd'hui</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="current-streak">--</div>
+        <div class="stat-label">🔥 Streak actuel</div>
+      </div>
+    </div>
+
+    <div class="motivational-quote" id="motivational-quote">
+      "Le plus grand révolutionnaire sera toujours celui qui sait se commander à lui-même." - Franklin D. Roosevelt
+    </div>
+
+    <div class="breathing-exercise">
+      <h3>🫁 Exercice de respiration</h3>
+      <div class="breathing-circle">
+        <span>Respirez</span>
+      </div>
+      <p>Suivez le cercle : inspirez quand il grandit, expirez quand il rétrécit</p>
+    </div>
+
+    <div class="alternatives">
+      <h3>🎯 Activités alternatives suggérées</h3>
+      <div id="alternatives-container">
+        <!-- Les alternatives seront ajoutées par JavaScript -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Charger les données et mettre à jour l'affichage
+    async function loadData() {
+      try {
+        const result = await browser.storage.local.get([
+          'pauseUntil', 'dailyCounts', 'streakData', 'userInterests', 'shortsCount', 'maxShorts'
+        ]);
+        
+        // Déterminer le type de blocage
+        const pauseUntil = result.pauseUntil || 0;
+        const isInPause = Date.now() < pauseUntil;
+        const shortsCount = result.shortsCount || 0;
+        const maxShorts = result.maxShorts || 10;
+        const limitReached = shortsCount >= maxShorts;
+        
+        // Adapter le contenu selon le contexte
+        updatePageContent(isInPause, limitReached, result);
+        
+        if (isInPause) {
+          updateCountdown(pauseUntil);
+        }
+        
+        updateStats(result);
+        loadAlternatives(result.userInterests);
+        loadMotivationalQuote();
+      } catch (error) {
+        console.error('Erreur lors du chargement des données:', error);
+      }
+    }
+    
+    function updatePageContent(isInPause, limitReached, data) {
+      const icon = document.querySelector('.block-icon');
+      const title = document.querySelector('h1');
+      const message = document.querySelector('.message');
+      const timer = document.getElementById('countdown-timer');
+      
+      if (isInPause) {
+        // Mode pause - utilisateur essaie d'accéder aux Shorts pendant la pause
+        icon.textContent = '⏸️';
+        title.textContent = 'Pause en Cours';
+        message.innerHTML = `
+          Vous êtes actuellement en pause. <br>
+          Profitez de ce moment pour faire autre chose !
+        `;
+        timer.style.display = 'block';
+      } else if (limitReached) {
+        // Mode limite atteinte - utilisateur vient de dépasser sa limite
+        icon.textContent = '🔒';
+        title.textContent = 'Limite Atteinte';
+        message.innerHTML = `
+          Vous avez atteint votre limite de ${data.maxShorts || 10} Shorts pour cette session. <br>
+          Prenez une pause et revenez dans quelques minutes !
+        `;
+        timer.style.display = 'block';
+      } else {
+        // Mode blocage général
+        icon.textContent = '🛡️';
+        title.textContent = 'Accès Bloqué';
+        message.innerHTML = `
+          L'accès aux Shorts YouTube est temporairement bloqué. <br>
+          Explorez les alternatives ci-dessous !
+        `;
+        timer.style.display = 'none';
+      }
+    }
+
+    function updateCountdown(pauseUntil) {
+      const timer = document.getElementById('countdown-timer');
+      
+      function updateTimer() {
+        const now = Date.now();
+        const remaining = pauseUntil - now;
+        
+        if (remaining <= 0) {
+          timer.textContent = "Vous pouvez maintenant retourner sur YouTube !";
+          // Rediriger automatiquement vers YouTube
+          setTimeout(() => {
+            window.location.href = 'https://www.youtube.com';
+          }, 2000);
+          return;
+        }
+        
+        const minutes = Math.floor(remaining / (60 * 1000));
+        const seconds = Math.floor((remaining % (60 * 1000)) / 1000);
+        timer.textContent = `Temps restant: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+        
+        setTimeout(updateTimer, 1000);
+      }
+      
+      updateTimer();
+    }
+
+    function updateStats(data) {
+      const today = new Date().toISOString().slice(0, 10);
+      const todayCount = (data.dailyCounts && data.dailyCounts[today]) || 0;
+      const currentStreak = (data.streakData && data.streakData.currentStreak) || 0;
+      
+      document.getElementById('shorts-watched').textContent = todayCount;
+      document.getElementById('current-streak').textContent = currentStreak;
+    }
+
+    function loadAlternatives(userInterests = []) {
+      const container = document.getElementById('alternatives-container');
+      
+      const alternatives = [
+        { name: '🏠 YouTube Accueil', url: 'https://www.youtube.com' },
+        { name: '📚 Wikipedia', url: 'https://fr.wikipedia.org/wiki/Sp%C3%A9cial:Page_au_hasard' },
+        { name: '🏃‍♂️ Exercice 5min', url: 'https://www.youtube.com/results?search_query=exercice+5+minutes' },
+        { name: '🧘‍♀️ Méditation', url: 'https://www.youtube.com/results?search_query=méditation+guidée' },
+        { name: '🌍 Duolingo', url: 'https://www.duolingo.com' },
+        { name: '📰 Actualités', url: 'https://www.lemonde.fr' }
+      ];
+      
+      // Ajouter des alternatives personnalisées selon les intérêts
+      if (userInterests.includes('programming')) {
+        alternatives.push({ name: '💻 GitHub', url: 'https://github.com/trending' });
+      }
+      
+      alternatives.forEach(alt => {
+        const link = document.createElement('a');
+        link.href = alt.url;
+        link.textContent = alt.name;
+        link.className = 'alternative-link';
+        link.target = '_blank';
+        container.appendChild(link);
+      });
+    }
+
+    function loadMotivationalQuote() {
+      const quotes = [
+        "Le plus grand révolutionnaire sera toujours celui qui sait se commander à lui-même. - Franklin D. Roosevelt",
+        "La discipline est le pont entre les objectifs et l'accomplissement. - Jim Rohn",
+        "Ce n'est pas le manque de temps qui nous limite, mais l'usage que nous en faisons. - Sénèque",
+        "La liberté, ce n'est pas de faire ce que l'on veut, mais de vouloir ce que l'on fait. - Jean-Paul Sartre",
+        "Chaque moment de résistance construit votre force intérieure. - Anonyme"
+      ];
+      
+      const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
+      document.getElementById('motivational-quote').textContent = randomQuote;
+    }
+
+    // Initialiser la page
+    loadData();
+  </script>
+</body>
+</html>

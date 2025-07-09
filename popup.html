@@ -123,6 +123,33 @@
       color: rgba(255, 255, 255, 0.5);
     }
 
+    .settings select {
+      width: 100%;
+      padding: 10px 12px;
+      border: none;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      font-size: 0.9em;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+
+    .settings select:focus {
+      outline: none;
+      background: rgba(255, 255, 255, 0.15);
+      border-color: rgba(255, 255, 255, 0.4);
+      box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+    }
+
+    .settings select option {
+      background: rgba(30, 30, 50, 0.95);
+      color: #fff;
+      padding: 10px;
+    }
+
     .btn {
       background: linear-gradient(45deg, #4facfe, #00f2fe);
       color: white;
@@ -254,6 +281,79 @@
       scrollbar-width: thin;
       scrollbar-color: rgba(255, 255, 255, 0.3) rgba(255, 255, 255, 0.1);
     }
+
+    /* Achievements Section */
+    .achievements-section {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 15px;
+      padding: 20px;
+      margin: 20px 0;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .achievements-container {
+      display: grid;
+      gap: 10px;
+    }
+
+    .achievement-badge {
+      display: flex;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      transition: all 0.3s ease;
+      animation: slideInFromLeft 0.5s ease;
+    }
+
+    .achievement-badge:hover {
+      background: rgba(255, 255, 255, 0.12);
+      transform: translateX(5px);
+    }
+
+    .achievement-icon {
+      font-size: 1.5em;
+      margin-right: 12px;
+      min-width: 30px;
+      text-align: center;
+    }
+
+    .achievement-info {
+      flex: 1;
+    }
+
+    .achievement-name {
+      font-weight: 600;
+      font-size: 0.9em;
+      color: #4facfe;
+      margin-bottom: 2px;
+    }
+
+    .achievement-desc {
+      font-size: 0.8em;
+      opacity: 0.7;
+      line-height: 1.2;
+    }
+
+    .no-achievements {
+      text-align: center;
+      opacity: 0.6;
+      font-style: italic;
+      padding: 20px;
+      font-size: 0.9em;
+    }
+
+    @keyframes slideInFromLeft {
+      from {
+        transform: translateX(-100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
   </style>
 </head>
 <body>
@@ -279,10 +379,32 @@
         <div class="stat-value" id="week-total">0</div>
         <div class="stat-label">Cette semaine</div>
       </div>
+      <div class="stat-card">
+        <div class="stat-value" id="current-streak">0</div>
+        <div class="stat-label">🔥 Streak</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="best-streak">0</div>
+        <div class="stat-label">🏆 Record</div>
+      </div>
+    </div>
+
+    <div class="stats-grid" style="grid-template-columns: 1fr;">
+      <div class="stat-card">
+        <div class="stat-value" id="avg-time">--</div>
+        <div class="stat-label">⏱️ Temps moyen / Short</div>
+      </div>
     </div>
 
     <div class="chart-container">
       <canvas id="weekly-chart"></canvas>
+    </div>
+
+    <div class="achievements-section">
+      <h4 style="margin-bottom: 15px; font-size: 1.1em; opacity: 0.9;">🏆 Achievements</h4>
+      <div id="achievements-container" class="achievements-container">
+        <!-- Achievements will be populated by JavaScript -->
+      </div>
     </div>
 
     <div class="settings-section">
@@ -296,6 +418,15 @@
           <label for="pause-duration">Durée de pause (minutes)</label>
           <input type="number" id="pause-duration" name="pause-duration" min="1" max="120" value="5" placeholder="5">
         </div>
+        <div class="input-group">
+          <label for="blocking-mode">Mode de blocage</label>
+          <select id="blocking-mode" name="blocking-mode">
+            <option value="gentle">🌸 Mode Doux - Notification simple</option>
+            <option value="standard" selected>⚡ Mode Standard - Blocage + pause temporaire</option>
+            <option value="strict">🔒 Mode Strict - Blocage total + alternatives</option>
+            <option value="adaptive">🤖 Mode Adaptatif - S'adapte à vos habitudes</option>
+          </select>
+        </div>
         <div class="button-group">
           <button type="submit" class="btn">💾 Sauvegarder</button>
           <button type="button" id="reset-counter" class="btn btn-reset">🔄 Reset</button>
@@ -304,6 +435,7 @@
       <div class="current-limit">
         <p id="current-limit">Limite: 10 shorts</p>
         <p id="current-pause">Pause: 5 minutes</p>
+        <p id="current-mode">Mode: Standard</p>
       </div>
     </div>
 
