@@ -52,16 +52,50 @@ class BlockingStrategies {
     };
     
     const badge = badges[state] || badges.warning;
-    browser.browserAction.setBadgeText({ text: badge.text });
-    browser.browserAction.setBadgeBackgroundColor({ color: badge.color });
+    
+    // Utiliser browser.action (Manifest V3) avec fallback vers browser.browserAction (Manifest V2)
+    try {
+      if (browser.action) {
+        browser.action.setBadgeText({ text: badge.text });
+        browser.action.setBadgeBackgroundColor({ color: badge.color });
+      } else if (browser.browserAction) {
+        browser.browserAction.setBadgeText({ text: badge.text });
+        browser.browserAction.setBadgeBackgroundColor({ color: badge.color });
+      }
+    } catch (error) {
+      console.warn('Erreur lors de la mise à jour du badge (blocking-modes):', error);
+      // Fallback pour mobile - sauvegarder l'état dans le storage
+      await browser.storage.local.set({ 
+        badgeState: { state, text: badge.text, color: badge.color },
+        lastBadgeUpdate: Date.now()
+      });
+    }
   }
 
-  static async redirect(tabId, originalUrl) {
-    const alternatives = await this.getSmartAlternatives();
-    const redirectUrl = alternatives[0]?.url || 'https://www.youtube.com';
+  static async redirect(tabId, originalUrl, isMobile = false) {
+    let redirectUrl;
     
-    browser.tabs.update(tabId, { url: redirectUrl });
-    console.log(`Redirected from ${originalUrl} to ${redirectUrl}`);
+    if (isMobile) {
+      redirectUrl = 'https://m.youtube.com';
+      console.log(`Mobile redirection: ${originalUrl} -> ${redirectUrl}`);
+    } else {
+      const alternatives = await this.getSmartAlternatives();
+      redirectUrl = alternatives[0]?.url || 'https://www.youtube.com';
+      console.log(`Desktop redirection: ${originalUrl} -> ${redirectUrl}`);
+    }
+    
+    try {
+      await browser.tabs.update(tabId, { url: redirectUrl });
+    } catch (error) {
+      console.error(`Failed to redirect tab ${tabId}:`, error);
+      // Fallback notification if redirection fails
+      browser.notifications.create({
+        type: "basic",
+        iconUrl: "icon48.png",
+        title: "Redirection échouée",
+        message: "Impossible de vous rediriger. Veuillez naviguer manuellement."
+      });
+    }
   }
 
   static async block(tabId, originalUrl) {
@@ -277,7 +311,12 @@ class BlockingModeManager {
         
       case 'block':
         if (context.tabId && context.url) {
-          await BlockingStrategies.block(context.tabId, context.url);
+          if (context.isMobile) {
+            // Sur mobile, la redirection est plus fiable qu'une page de blocage
+            await BlockingStrategies.redirect(context.tabId, context.url, true);
+          } else {
+            await BlockingStrategies.block(context.tabId, context.url);
+          }
         }
         break;
         
@@ -293,13 +332,28 @@ class BlockingModeManager {
         // Mettre à jour le badge pour indiquer la pause
         await BlockingStrategies.badge('paused');
         
-        // Notification de confirmation de pause
-        browser.notifications.create({
+        // Notification de confirmation de pause (plus visible sur mobile)
+        browser.notifications.create('pause-notification', {
           type: "basic",
           iconUrl: "icon48.png",
           title: "⏸️ Pause activée",
-          message: `Pause de ${standardDuration} minutes en cours. Prenez une pause !`
+          message: `Pause de ${standardDuration} minutes en cours. Prenez une pause !`,
+          priority: 2, // Haute priorité pour mobile
+          requireInteraction: false // Ne nécessite pas d'interaction pour disparaître
         });
+        
+        // Notification supplémentaire pour mobile avec son
+        if (context.isMobile) {
+          setTimeout(() => {
+            browser.notifications.create('pause-reminder', {
+              type: "basic",
+              iconUrl: "icon48.png",
+              title: "🚫 Shorts bloqués",
+              message: `${standardDuration} minutes de pause restantes`,
+              priority: 2
+            });
+          }, 1000);
+        }
         
         console.log(`Pause activée jusqu'à: ${new Date(pauseUntil).toLocaleTimeString()}`);
         break;

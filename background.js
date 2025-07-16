@@ -1,9 +1,26 @@
 // === IMPORTS ===
+import { achievements, checkAchievements, unlockAchievement } from './achievements.js';
+import { countedUrls, incrementCounter, resetCounter, checkAndResetStreak } from './counter.js';
+import { activeYouTubeTabs, startWatchTimer, endWatchTimer, addWatchTime, calculateAverageWatchTime, processWatchTime } from './watchTime.js';
+import { applyAdvancedBlocking, applyPauseBlocking } from './blocking.js';
 try {
   importScripts('improvements.js');
   importScripts('blocking-modes.js');
 } catch (error) {
   console.warn('Could not import scripts:', error);
+}
+
+// === UTILITAIRES ===
+function getToday() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+async function getStorage(keys) {
+  return await browser.storage.local.get(keys);
+}
+
+async function setStorage(obj) {
+  return await browser.storage.local.set(obj);
 }
 
 // Initialiser le compteur si nécessaire
@@ -20,94 +37,6 @@ browser.storage.local.get(['shortsCount', 'pauseUntil']).then((result) => {
 });
 
 // === ACHIEVEMENTS SYSTEM ===
-const achievements = {
-  FIRST_DAY: { 
-    id: 'first_day', 
-    name: 'Premier Jour', 
-    description: 'Première limite respectée !',
-    icon: '🌟'
-  },
-  WEEK_CLEAN: { 
-    id: 'week_clean', 
-    name: '7 Jours Clean', 
-    description: '7 jours consécutifs sans dépasser',
-    icon: '🔥'
-  },
-  MONTH_CLEAN: { 
-    id: 'month_clean', 
-    name: 'Mois Parfait', 
-    description: '30 jours consécutifs sans dépasser',
-    icon: '👑'
-  },
-  SPEED_DEMON: {
-    id: 'speed_demon',
-    name: 'Speed Demon',
-    description: 'Plus de 50 shorts en une journée',
-    icon: '⚡'
-  },
-  EARLY_BIRD: {
-    id: 'early_bird',
-    name: 'Lève-tôt',
-    description: '5 jours d\'affilée avec limit respectée avant 18h',
-    icon: '🌅'
-  }
-};
-
-function checkAchievements() {
-  browser.storage.local.get([
-    'currentStreak', 
-    'unlockedAchievements', 
-    'dailyCounts',
-    'maxShorts'
-  ]).then((result) => {
-    const streak = result.currentStreak || 0;
-    const unlocked = result.unlockedAchievements || [];
-    const dailyCounts = result.dailyCounts || {};
-    const maxShorts = result.maxShorts || 10;
-    const today = new Date().toISOString().slice(0, 10);
-    const todayCount = dailyCounts[today] || 0;
-    
-    // Achievement: Premier Jour
-    if (streak >= 1 && !unlocked.includes('first_day')) {
-      unlockAchievement('first_day');
-    }
-    
-    // Achievement: 7 Jours Clean
-    if (streak >= 7 && !unlocked.includes('week_clean')) {
-      unlockAchievement('week_clean');
-    }
-    
-    // Achievement: Mois Parfait
-    if (streak >= 30 && !unlocked.includes('month_clean')) {
-      unlockAchievement('month_clean');
-    }
-    
-    // Achievement: Speed Demon
-    if (todayCount >= 50 && !unlocked.includes('speed_demon')) {
-      unlockAchievement('speed_demon');
-    }
-  });
-}
-
-function unlockAchievement(achievementId) {
-  browser.storage.local.get('unlockedAchievements').then((result) => {
-    const unlocked = result.unlockedAchievements || [];
-    if (!unlocked.includes(achievementId)) {
-      unlocked.push(achievementId);
-      browser.storage.local.set({ unlockedAchievements: unlocked });
-      
-      const achievement = achievements[achievementId.toUpperCase()];
-      browser.notifications.create({
-        type: "basic",
-        iconUrl: "icon48.png",
-        title: `🏆 Achievement Débloqué !`,
-        message: `${achievement.icon} ${achievement.name}: ${achievement.description}`
-      });
-      
-      console.log(`Achievement unlocked: ${achievement.name}`);
-    }
-  });
-}
 
 // Ajouter une option pour rendre le nombre de Shorts paramétrable
 let maxShorts = 10; // Valeur par défaut
@@ -134,23 +63,49 @@ function updateBadge(state, value) {
     color = '#FFA500'; // Orange pour la pause
   }
 
-  browser.action.setBadgeText({ text: text });
-  browser.action.setBadgeBackgroundColor({ color: color });
+  // Utiliser browser.action (Manifest V3) avec fallback vers browser.browserAction (Manifest V2)
+  try {
+    if (browser.action) {
+      browser.action.setBadgeText({ text: text });
+      browser.action.setBadgeBackgroundColor({ color: color });
+    } else if (browser.browserAction) {
+      browser.browserAction.setBadgeText({ text: text });
+      browser.browserAction.setBadgeBackgroundColor({ color: color });
+    }
+  } catch (error) {
+    console.warn('Erreur lors de la mise à jour du badge:', error);
+    // Fallback pour mobile - sauvegarder l'état dans le storage pour l'affichage popup
+    browser.storage.local.set({ 
+      badgeState: { state, value, text, color },
+      lastBadgeUpdate: Date.now()
+    });
+  }
 }
 
-// Fonction pour réinitialiser le compteur
-function resetCounter() {
-  console.log('Compteur réinitialisé. shortsCount et pauseUntil remis à 0.');
-  browser.storage.local.set({ shortsCount: 0, pauseUntil: 0 });
-  updateBadge('counting', 0);
-}
-
-// Regex pour détecter les URLs YouTube Shorts
+// Regex pour détecter les URLs YouTube Shorts (desktop et mobile)
 const shortsRegex = /^https?:\/\/(?:www\.|m\.)?youtube\.com\/shorts\/.*$/;
+const mobileShortsRegex = /^https?:\/\/(?:youtu\.be\/.*|youtube\.com\/.*[?&]v=.*&.*shorts|.*youtube.*\/shorts)/;
 
 // Fonction pour vérifier si l'URL est un Short
 function isShortsUrl(url) {
-  return shortsRegex.test(url);
+  if (!url) return false;
+  
+  // Test avec les regex principaux
+  if (shortsRegex.test(url) || mobileShortsRegex.test(url)) {
+    return true;
+  }
+  
+  // Test additionnel pour URLs mobiles spécifiques
+  if (url.includes('youtube.com') && url.includes('/shorts/')) {
+    return true;
+  }
+  
+  // Debug logging pour mobile
+  if (url.includes('youtube.com')) {
+    console.log(`URL YouTube détectée: ${url}, Shorts: ${shortsRegex.test(url)}`);
+  }
+  
+  return false;
 }
 
 // Fonction de redirection centralisée
@@ -173,139 +128,30 @@ async function redirectToYouTube(tabId, url) {
   }
 }
 
-// Fonction pour incrémenter le compteur
-function incrementCounter() {
-  browser.storage.local.get(['shortsCount', 'maxShorts', 'pauseDuration', 'dailyCounts']).then((result) => {
-    // --- Logique pour le compteur de session et la pause ---
-    const newCount = (result.shortsCount || 0) + 1;
-    const currentMaxShorts = result.maxShorts || 10;
-    const currentPauseDuration = result.pauseDuration || 5;
-    
-    let dataToStore = { shortsCount: newCount };
-
-    updateBadge('counting', newCount);
-    console.log(`Compteur de session mis à jour: ${newCount}/${currentMaxShorts}`);
-
-    // --- Logique pour l'historique quotidien ---
-    const today = new Date().toISOString().slice(0, 10); // Format YYYY-MM-DD
-    const dailyCounts = result.dailyCounts || {};
-    dailyCounts[today] = (dailyCounts[today] || 0) + 1;
-    dataToStore.dailyCounts = dailyCounts;
-    console.log(`Compteur du jour (${today}): ${dailyCounts[today]}`);
-
-    // --- Sauvegarder les deux données en même temps ---
-    browser.storage.local.set(dataToStore);
-
-    // --- Démarrer le timer de visionnage ---
-    startWatchTimer();
-
-    // --- Vérifier les achievements ---
-    checkAchievements();
-
-    // --- Vérifier si la limite est atteinte ---
-    if (newCount >= currentMaxShorts) {
-      // Arrêter le timer de visionnage
-      endWatchTimer();
-      
-      // Réinitialiser le streak car limite dépassée
-      checkAndResetStreak();
-      
-      // Appliquer le mode de blocage configuré
-      applyAdvancedBlocking(newCount, currentMaxShorts, currentPauseDuration);
-    }
-  });
-}
-
-// Fonction pour vérifier et réinitialiser le streak si limite dépassée
-function checkAndResetStreak() {
-  browser.storage.local.get(['maxShorts', 'dailyCounts', 'currentStreak']).then((result) => {
-    const maxShorts = result.maxShorts || 10;
-    const dailyCounts = result.dailyCounts || {};
-    const currentStreak = result.currentStreak || 0;
-    const today = new Date().toISOString().slice(0, 10);
-    const todayCount = dailyCounts[today] || 0;
-    
-    if (todayCount >= maxShorts && currentStreak > 0) {
-      // Reset du streak car limite dépassée
-      browser.storage.local.set({ currentStreak: 0 });
-      console.log('Limite dépassée aujourd\'hui - Streak réinitialisé');
-      
-      // Notification de streak perdu
-      browser.notifications.create({
-        type: "basic",
-        iconUrl: "icon48.png",
-        title: "💔 Streak perdu",
-        message: `Votre streak de ${currentStreak} jours s'arrête ici. Vous pouvez recommencer demain !`
-      });
-    }
-  });
-}
-
-// Écouter les messages depuis le popup
+/**
+ * Listener : messages reçus depuis le popup ou d'autres scripts.
+ * Permet de réinitialiser le compteur via l'UI.
+ * @param {object} message - Message reçu
+ * @param {object} sender - Infos sur l'expéditeur
+ * @param {function} sendResponse - Callback pour répondre
+ */
 browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'resetCounter') {
-    resetCounter();
+    resetCounter(setStorage, updateBadge);
   }
 });
 
 // Map pour stocker les URLs déjà comptées
-let countedUrls = new Map();
 
-// Surveiller les changements d'URL
-browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  // S'assurer que l'URL est disponible
-  if (!changeInfo.url) {
-    return;
-  }
-
-  browser.storage.local.get(['pauseUntil', 'shortsCount']).then((result) => {
-    const pauseUntil = result.pauseUntil || 0;
-    const shortsCount = result.shortsCount || 0;
-    console.log(`Vérification de la pause: Heure actuelle=${Date.now()}, Pause jusqu'à=${pauseUntil}`);
-
-    // 1. Gérer la période de pause
-    if (Date.now() < pauseUntil) {
-      console.log('Pause active. Vérification si l\'URL est un Short...');
-      if (isShortsUrl(changeInfo.url)) {
-        const remainingMinutes = Math.ceil((pauseUntil - Date.now()) / 60000);
-        
-        // Appliquer le blocage selon le mode configuré
-        applyPauseBlocking(tabId, changeInfo.url, remainingMinutes);
-        return; // Bloquer seulement les Shorts pendant la pause
-      }
-      // Permettre la navigation normale pendant la pause
-      console.log('Navigation autorisée pendant la pause (pas un Short)');
-    }
-
-    // 2. Gérer la réinitialisation du compteur
-    // Si la pause est terminée et que l'utilisateur navigue hors des Shorts,
-    // on réinitialise le compteur et la pause.
-    if (pauseUntil > 0 && Date.now() > pauseUntil) {
-        console.log('Pause terminée, réinitialisation du compteur');
-        resetCounter();
-        return;
-    }
-
-    // 3. Gérer le comptage des nouveaux Shorts
-    if (isShortsUrl(changeInfo.url)) {
-      if (!countedUrls.has(changeInfo.url)) {
-        countedUrls.set(changeInfo.url, Date.now());
-        incrementCounter();
-
-        setTimeout(() => {
-          countedUrls.delete(changeInfo.url);
-        }, 5000); // Évite de compter plusieurs fois la même URL rapidement
-      }
-    } else {
-      // Si on quitte les shorts, arrêter le timer
-      endWatchTimer();
-    }
-  });
+// Flag global pour activer/désactiver les logs de debug
+let DEBUG_LOG_ENABLED = false;
+getStorage(['debugLogEnabled']).then((result) => {
+  DEBUG_LOG_ENABLED = !!result.debugLogEnabled;
 });
 
-// New function to add debug logs to storage
 function addDebugLog(message) {
-  browser.storage.local.get('debugLogs').then((result) => {
+  if (!DEBUG_LOG_ENABLED) return;
+  getStorage('debugLogs').then((result) => {
     const debugLogs = result.debugLogs || [];
     const timestamp = new Date().toLocaleTimeString();
     debugLogs.push(`[${timestamp}] ${message}`);
@@ -313,75 +159,83 @@ function addDebugLog(message) {
     if (debugLogs.length > 50) {
       debugLogs.shift();
     }
-    browser.storage.local.set({ debugLogs: debugLogs });
+    setStorage({ debugLogs: debugLogs });
   });
 }
 
-let activeYouTubeTabs = {}; // { tabId: startTimeMs }
-
-// Function to process watch time for a tab
-async function processWatchTime(tabId, endTime) {
-  if (activeYouTubeTabs[tabId]) {
-    const startTime = activeYouTubeTabs[tabId];
-    const duration = endTime - startTime;
-
-    if (duration > 0) {
-      addDebugLog(`Tracking stopped for tab ${tabId}. Duration: ${duration} ms.`);
-      const result = await browser.storage.local.get('dailyWatchTime');
-      const dailyWatchTime = result.dailyWatchTime || {};
-      const today = new Date().toISOString().slice(0, 10);
-
-      dailyWatchTime[today] = (dailyWatchTime[today] || 0) + duration;
-      await browser.storage.local.set({ dailyWatchTime: dailyWatchTime });
-      addDebugLog(`Temps de visionnage YouTube mis à jour pour ${today}: ${dailyWatchTime[today]} ms`);
-    }
-    delete activeYouTubeTabs[tabId];
-  }
-}
-
-// Listener for tab activation
-browser.tabs.onActivated.addListener(async (activeInfo) => {
-  // Process time for previously active YouTube tab
-  const allTabs = await browser.tabs.query({});
-  for (const tab of allTabs) {
-    if (tab.id !== activeInfo.tabId && activeYouTubeTabs[tab.id]) {
-      await processWatchTime(tab.id, Date.now());
-    }
-  }
-
-  // Start tracking for newly active tab if it's YouTube
-  const activeTab = await browser.tabs.get(activeInfo.tabId);
-  if (activeTab && activeTab.url && activeTab.url.includes('youtube.com')) {
-    activeYouTubeTabs[activeTab.id] = Date.now();
-    addDebugLog(`Tracking started for tab ${activeTab.id}: ${activeTab.url}`);
-  }
-});
-
-// Listener for tab updates (URL change)
+/**
+ * Listener principal : surveille les changements d'URL des onglets.
+ * Gère le blocage, le compteur de Shorts et le tracking du temps de visionnage.
+ * @param {number} tabId - ID de l'onglet modifié
+ * @param {object} changeInfo - Infos sur le changement (ex : nouvelle URL)
+ * @param {object} tab - Objet onglet complet
+ */
 browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-  // If URL changed for a tracked tab, stop tracking
-  if (changeInfo.url && activeYouTubeTabs[tabId]) {
-    await processWatchTime(tabId, Date.now());
+  // Regrouper les accès au storage pour éviter les lectures multiples
+  if (changeInfo.url) {
+    const result = await getStorage([
+      'pauseUntil', 'shortsCount', 'maxShorts', 'pauseDuration', 'dailyCounts'
+    ]);
+    const pauseUntil = result.pauseUntil || 0;
+    const shortsCount = result.shortsCount || 0;
+    const maxShorts = result.maxShorts || 10;
+    const pauseDuration = result.pauseDuration || 5;
+    const dailyCounts = result.dailyCounts || {};
+    // --- Blocage/compteur Shorts ---
+    if (pauseUntil > 0 && Date.now() > pauseUntil) {
+      resetCounter(setStorage, updateBadge);
+      return;
+    }
+    if (isShortsUrl(changeInfo.url)) {
+      if (!countedUrls.has(changeInfo.url)) {
+        countedUrls.set(changeInfo.url, Date.now());
+        incrementCounter(
+          getStorage,
+          setStorage,
+          updateBadge,
+          startWatchTimer,
+          (d) => endWatchTimer((d) => addWatchTime(d, getStorage, setStorage, () => calculateAverageWatchTime(getStorage, setStorage))),
+          () => checkAchievements(getStorage, (id) => unlockAchievement(id, getStorage, setStorage)),
+          () => checkAndResetStreak(getStorage, setStorage),
+          (n, m, p) => applyAdvancedBlocking(n, m, p, getStorage, setStorage, updateBadge)
+        );
+        setTimeout(() => {
+          countedUrls.delete(changeInfo.url);
+        }, 5000);
+      }
+    } else {
+      endWatchTimer((d) => addWatchTime(d, getStorage, setStorage, () => calculateAverageWatchTime(getStorage, setStorage)));
+    }
   }
-
-  // If new URL is YouTube, start tracking
+  // --- Tracking du temps de visionnage ---
+  if (changeInfo.url && activeYouTubeTabs[tabId]) {
+    await processWatchTime(tabId, Date.now(), getStorage, setStorage, addDebugLog);
+  }
   if (tab.url && tab.url.includes('youtube.com') && !activeYouTubeTabs[tabId]) {
     activeYouTubeTabs[tabId] = Date.now();
     addDebugLog(`Tracking started for tab ${tabId}: ${tab.url}`);
   }
 });
 
-// Listener for tab removal
+/**
+ * Listener : déclenché à la fermeture d'un onglet.
+ * Termine le tracking du temps de visionnage pour cet onglet si besoin.
+ * @param {number} tabId - ID de l'onglet fermé
+ */
 browser.tabs.onRemoved.addListener(async (tabId) => {
-  await processWatchTime(tabId, Date.now());
+  await processWatchTime(tabId, Date.now(), getStorage, setStorage, addDebugLog);
 });
 
-// Listener for window focus changes
+/**
+ * Listener : changement de focus de fenêtre navigateur.
+ * Stoppe ou démarre le tracking du temps de visionnage selon le focus.
+ * @param {number} windowId - ID de la fenêtre (ou WINDOW_ID_NONE si perte de focus)
+ */
 browser.windows.onFocusChanged.addListener(async (windowId) => {
   if (windowId === browser.windows.WINDOW_ID_NONE) { // Browser lost focus
     addDebugLog('Browser lost focus. Stopping all active YouTube tab tracking.');
     for (const tabId in activeYouTubeTabs) {
-      await processWatchTime(tabId, Date.now());
+      await processWatchTime(tabId, Date.now(), getStorage, setStorage, addDebugLog);
     }
   } else { // Browser gained focus
     addDebugLog('Browser gained focus. Checking active YouTube tabs.');
@@ -397,140 +251,19 @@ browser.windows.onFocusChanged.addListener(async (windowId) => {
 });
 
 // === WATCH TIME TRACKING ===
-let shortStartTime = null;
 
-function startWatchTimer() {
-  shortStartTime = Date.now();
-}
-
-function endWatchTimer() {
-  if (shortStartTime) {
-    const watchDuration = Date.now() - shortStartTime;
-    addWatchTime(watchDuration);
-    shortStartTime = null;
-  }
-}
-
-function addWatchTime(duration) {
-  browser.storage.local.get(['dailyWatchTime', 'totalWatchTime']).then((result) => {
-    const today = new Date().toISOString().slice(0, 10);
-    const dailyWatchTime = result.dailyWatchTime || {};
-    const totalWatchTime = result.totalWatchTime || 0;
-    
-    dailyWatchTime[today] = (dailyWatchTime[today] || 0) + duration;
-    
-    browser.storage.local.set({ 
-      dailyWatchTime, 
-      totalWatchTime: totalWatchTime + duration 
-    });
-    
-    // Calculer et mettre à jour le temps moyen
-    calculateAverageWatchTime();
-  });
-}
-
-function calculateAverageWatchTime() {
-  browser.storage.local.get(['dailyWatchTime', 'dailyCounts']).then((result) => {
-    const dailyWatchTime = result.dailyWatchTime || {};
-    const dailyCounts = result.dailyCounts || {};
-    
-    let totalTime = 0;
-    let totalShorts = 0;
-    
-    Object.keys(dailyWatchTime).forEach(date => {
-      totalTime += dailyWatchTime[date] || 0;
-      totalShorts += dailyCounts[date] || 0;
-    });
-    
-    const avgTimePerShort = totalShorts > 0 ? totalTime / totalShorts : 0;
-    browser.storage.local.set({ avgTimePerShort });
-    
-    console.log(`Average time per short: ${Math.round(avgTimePerShort / 1000)}s`);
-  });
-}
+// Fonction pour vérifier les achievements
+// (SUPPRIMÉE car remplacée par le module achievements.js)
 
 // Fonction pour appliquer le blocage avancé selon le mode configuré
-async function applyAdvancedBlocking(newCount, maxShorts, pauseDuration) {
-  try {
-    // Récupérer le mode de blocage configuré
-    const result = await browser.storage.local.get(['blockingMode']);
-    const blockingMode = result.blockingMode || 'standard';
-    
-    console.log(`Limite atteinte (${newCount}/${maxShorts}) - Application du mode: ${blockingMode}`);
-    
-    // Préparer le contexte pour le gestionnaire de blocage
-    const context = {
-      currentCount: newCount,
-      maxShorts: maxShorts,
-      pauseDuration: pauseDuration,
-      limitExceeded: true,
-      title: "🚫 Limite atteinte",
-      message: `Vous avez atteint votre limite de ${maxShorts} Shorts`,
-      count: newCount
-    };
-    
-    // Appliquer le mode de blocage via le gestionnaire
-    if (typeof BlockingModeManager !== 'undefined') {
-      await BlockingModeManager.applyBlockingMode(blockingMode, context);
-    } else {
-      // Fallback si le gestionnaire n'est pas disponible
-      console.warn('BlockingModeManager non disponible, utilisation du blocage standard');
-      const pauseUntil = Date.now() + pauseDuration * 60 * 1000;
-      await browser.storage.local.set({ pauseUntil });
-      updateBadge('paused');
-    }
-  } catch (error) {
-    console.error('Erreur lors de l\'application du blocage avancé:', error);
-  }
-}
+// (SUPPRIMÉE car remplacée par le module blocking.js)
 
 // Fonction pour appliquer le blocage pendant la pause
-async function applyPauseBlocking(tabId, url, remainingMinutes) {
-  try {
-    // Récupérer le mode de blocage configuré
-    const result = await browser.storage.local.get(['blockingMode']);
-    const blockingMode = result.blockingMode || 'standard';
-    
-    console.log(`Blocage pendant pause (${remainingMinutes} min restantes) - Mode: ${blockingMode}`);
-    
-    // Préparer le contexte pour le gestionnaire de blocage
-    const context = {
-      tabId: tabId,
-      url: url,
-      originalUrl: url,
-      remainingMinutes: remainingMinutes,
-      isPause: true,
-      title: "⏸️ Pause en cours",
-      message: `Veuillez attendre encore ${remainingMinutes} minutes`
-    };
-    
-    // Appliquer le mode de blocage via le gestionnaire
-    if (typeof BlockingModeManager !== 'undefined') {
-      await BlockingModeManager.applyBlockingMode(blockingMode, context);
-    } else {
-      // Fallback si le gestionnaire n'est pas disponible
-      console.warn('BlockingModeManager non disponible, utilisation du blocage standard');
-      browser.notifications.create({
-        type: "basic",
-        iconUrl: "icon48.png",
-        title: "Pause en cours",
-        message: `Veuillez attendre encore ${remainingMinutes} minutes.`
-      });
-      redirectToYouTube(tabId, url);
-    }
-    
-    // S'assurer que le badge reste en mode pause
-    updateBadge('paused');
-  } catch (error) {
-    console.error('Erreur lors de l\'application du blocage pendant la pause:', error);
-    // Fallback en cas d'erreur
-    redirectToYouTube(tabId, url);
-  }
-}
+// (SUPPRIMÉE car remplacée par le module blocking.js)
 
 // Vérification périodique de l'état de pause
 function checkPauseStatus() {
-  browser.storage.local.get(['pauseUntil']).then((result) => {
+  getStorage(['pauseUntil']).then((result) => {
     const pauseUntil = result.pauseUntil || 0;
     const now = Date.now();
     
@@ -542,8 +275,8 @@ function checkPauseStatus() {
       } else {
         // Pause expirée, nettoyer et réinitialiser
         console.log('Pause expirée, nettoyage...');
-        browser.storage.local.set({ pauseUntil: 0 });
-        browser.storage.local.get(['shortsCount']).then((countResult) => {
+        setStorage({ pauseUntil: 0 });
+        getStorage(['shortsCount']).then((countResult) => {
           updateBadge('counting', countResult.shortsCount || 0);
         });
       }

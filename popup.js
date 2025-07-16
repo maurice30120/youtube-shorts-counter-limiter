@@ -17,13 +17,29 @@ function updateCounter() {
     
     // Afficher l'état de pause si actif
     const counterLabel = document.querySelector('.counter-label');
+    const counterElement = document.getElementById('counter');
+    
     if (Date.now() < pauseUntil) {
       const remainingMinutes = Math.ceil((pauseUntil - Date.now()) / 60000);
       counterLabel.textContent = `⏸️ Pause en cours (${remainingMinutes} min restantes)`;
       counterLabel.style.color = '#feca57';
+      
+      // Mettre en évidence l'état de pause sur mobile
+      if (counterElement) {
+        counterElement.style.color = '#feca57';
+        counterElement.style.textShadow = '0 0 20px rgba(254, 202, 87, 0.5)';
+      }
+      
+      // Vérifier si le badge fonctionne, sinon utiliser une notification visible
+      checkBadgeSupport();
     } else {
       counterLabel.textContent = 'Shorts vus cette session';
       counterLabel.style.color = '';
+      
+      if (counterElement) {
+        counterElement.style.color = '';
+        counterElement.style.textShadow = '';
+      }
     }
   });
 }
@@ -395,6 +411,56 @@ function displayAchievements(unlockedAchievements) {
       achievementsContainer.appendChild(achievementDiv);
     }
   });
+}
+
+// Fonction pour vérifier si le badge fonctionne et proposer une alternative mobile
+function checkBadgeSupport() {
+  browser.storage.local.get(['badgeState', 'lastBadgeUpdate']).then((result) => {
+    const badgeState = result.badgeState;
+    const lastUpdate = result.lastBadgeUpdate || 0;
+    const timeSinceUpdate = Date.now() - lastUpdate;
+    
+    // Si le badge a été sauvegardé récemment (badge API ne fonctionne pas)
+    if (badgeState && timeSinceUpdate < 60000) {
+      console.log('Badge API non supporté, affichage alternatif pour mobile');
+      showMobilePauseIndicator(badgeState);
+    }
+  });
+}
+
+// Affichage spécial pour mobile quand le badge ne fonctionne pas
+function showMobilePauseIndicator(badgeState) {
+  // Créer ou mettre à jour un indicateur de pause mobile
+  let mobileIndicator = document.getElementById('mobile-pause-indicator');
+  
+  if (!mobileIndicator && badgeState.state === 'paused') {
+    mobileIndicator = document.createElement('div');
+    mobileIndicator.id = 'mobile-pause-indicator';
+    mobileIndicator.style.cssText = `
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background: linear-gradient(45deg, #FFA500, #FF8C00);
+      color: white;
+      padding: 8px 12px;
+      border-radius: 20px;
+      font-size: 0.9em;
+      font-weight: bold;
+      z-index: 1000;
+      box-shadow: 0 4px 15px rgba(255, 165, 0, 0.3);
+      animation: pulse 2s infinite;
+    `;
+    mobileIndicator.innerHTML = `${badgeState.text} PAUSE`;
+    
+    document.body.appendChild(mobileIndicator);
+    
+    // Supprimer l'indicateur après 5 secondes
+    setTimeout(() => {
+      if (mobileIndicator) {
+        mobileIndicator.remove();
+      }
+    }, 5000);
+  }
 }
 
 // Initialize the popup when DOM is loaded

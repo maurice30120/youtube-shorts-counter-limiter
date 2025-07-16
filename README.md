@@ -44,3 +44,91 @@ Pour des idées sur comment améliorer le projet, consultez notre [**Feuille de 
 ## Licence
 
 Ce projet est distribué sous la licence MIT. Voir le fichier `LICENSE` pour plus d'informations.
+
+## Structure technique et architecture
+
+### Vue d'ensemble
+L’extension **YouTube Shorts Counter** aide à limiter la consommation de Shorts sur YouTube grâce à un compteur, des redirections, des modes de blocage avancés, un système de streaks et d’achievements, et des statistiques détaillées.
+
+### Fonctionnalités principales
+- Compteur de Shorts avec badge sur l’icône
+- Redirection automatique après une limite configurable
+- Système de streaks (jours consécutifs sans dépasser la limite)
+- Achievements (badges, notifications)
+- Modes de blocage (doux, standard, strict, adaptatif)
+- Statistiques (temps moyen, historique, graphiques)
+- UI moderne (glassmorphism, responsive, animations)
+- Paramètres avancés (limite, pause, mode)
+- Logs de debug pour le troubleshooting
+
+### Structure technique (modules principaux)
+- `background.js` : cœur métier, gestion des événements, intégration des modules
+- `achievements.js` : gestion des succès et notifications
+- `counter.js` : logique du compteur, streaks, reset
+- `watchTime.js` : tracking du temps de visionnage, calculs
+- `blocking.js` : modes de blocage, redirections, gestion de la pause
+- `improvements.js` : fonctionnalités avancées (streaks, analytics)
+- `blocking-modes.js` : configuration et stratégies de blocage
+- `popup.js` / `popup.html` : interface utilisateur
+- `public/manifest.json` : déclaration de l’extension
+
+### Stockage (chrome.storage.local)
+```js
+{
+  shortsCount: number,           // Compteur de session
+  maxShorts: number,             // Limite utilisateur (défaut : 10)
+  pauseUntil: timestamp,         // Fin de la pause
+  pauseDuration: number,         // Durée de la pause (minutes)
+  dailyCounts: { "YYYY-MM-DD": number }, // Historique quotidien
+  currentStreak: number,         // Streak actuel
+  bestStreak: number,            // Meilleur streak
+  totalWatchTime: number,        // Temps total passé
+  unlockedAchievements: [],      // Achievements débloqués
+  blockingMode: string,          // Mode de blocage actif
+  // ... autres clés pour analytics, logs, etc.
+}
+```
+
+### Schéma Mermaid de la structure
+
+```mermaid
+graph TD;
+  A[background.js]
+  B[achievements.js]
+  C[counter.js]
+  D[watchTime.js]
+  E[blocking.js]
+  F[improvements.js]
+  G[blocking-modes.js]
+  H[popup.js]
+  I[public/manifest.json]
+
+  A -->|import| B
+  A -->|import| C
+  A -->|import| D
+  A -->|import| E
+  A -->|import| F
+  A -->|import| G
+  H -->|utilise API| A
+  I -->|déclare| A
+
+  subgraph Modules principaux
+    B
+    C
+    D
+    E
+  end
+
+  subgraph UI
+    H
+  end
+
+  subgraph Config
+    I
+  end
+
+  subgraph Legacy/Améliorations
+    F
+    G
+  end
+```
