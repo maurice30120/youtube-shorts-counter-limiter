@@ -32,6 +32,11 @@ function updateCounter() {
       
       // Vérifier si le badge fonctionne, sinon utiliser une notification visible
       checkBadgeSupport();
+      
+      // Sur mobile, vérifier plus fréquemment l'état de pause
+      if (navigator.userAgent.includes('Mobile') || navigator.userAgent.includes('Android') || navigator.userAgent.includes('iPhone')) {
+        setTimeout(() => checkBadgeSupport(), 1000);
+      }
     } else {
       counterLabel.textContent = 'Shorts vus cette session';
       counterLabel.style.color = '';
@@ -415,51 +420,95 @@ function displayAchievements(unlockedAchievements) {
 
 // Fonction pour vérifier si le badge fonctionne et proposer une alternative mobile
 function checkBadgeSupport() {
-  browser.storage.local.get(['badgeState', 'lastBadgeUpdate']).then((result) => {
+  browser.storage.local.get(['badgeState', 'lastBadgeUpdate', 'pauseUntil']).then((result) => {
     const badgeState = result.badgeState;
     const lastUpdate = result.lastBadgeUpdate || 0;
     const timeSinceUpdate = Date.now() - lastUpdate;
+    const pauseUntil = result.pauseUntil || 0;
     
     // Si le badge a été sauvegardé récemment (badge API ne fonctionne pas)
-    if (badgeState && timeSinceUpdate < 60000) {
-      console.log('Badge API non supporté, affichage alternatif pour mobile');
-      showMobilePauseIndicator(badgeState);
+    // ou si nous sommes en pause active, afficher l'indicateur mobile
+    if ((badgeState && timeSinceUpdate < 60000) || (pauseUntil > 0 && Date.now() < pauseUntil)) {
+      console.log('Badge API non supporté ou pause active, affichage alternatif pour mobile');
+      const effectiveBadgeState = badgeState || { state: 'paused', text: '❚❚' };
+      showMobilePauseIndicator(effectiveBadgeState, pauseUntil);
     }
   });
 }
 
 // Affichage spécial pour mobile quand le badge ne fonctionne pas
-function showMobilePauseIndicator(badgeState) {
-  // Créer ou mettre à jour un indicateur de pause mobile
-  let mobileIndicator = document.getElementById('mobile-pause-indicator');
+function showMobilePauseIndicator(badgeState, pauseUntil = 0) {
+  // Supprimer l'indicateur existant s'il y en a un
+  const existingIndicator = document.getElementById('mobile-pause-indicator');
+  if (existingIndicator) {
+    existingIndicator.remove();
+  }
   
-  if (!mobileIndicator && badgeState.state === 'paused') {
-    mobileIndicator = document.createElement('div');
+  // Créer un indicateur de pause mobile seulement si en pause
+  if (badgeState.state === 'paused' || (pauseUntil > 0 && Date.now() < pauseUntil)) {
+    const mobileIndicator = document.createElement('div');
     mobileIndicator.id = 'mobile-pause-indicator';
+    
+    // Calculer le temps restant si disponible
+    let timeText = '';
+    if (pauseUntil > 0 && Date.now() < pauseUntil) {
+      const remainingMinutes = Math.ceil((pauseUntil - Date.now()) / 60000);
+      timeText = ` - ${remainingMinutes}min`;
+    }
+    
     mobileIndicator.style.cssText = `
       position: fixed;
-      top: 10px;
-      right: 10px;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
       background: linear-gradient(45deg, #FFA500, #FF8C00);
       color: white;
-      padding: 8px 12px;
-      border-radius: 20px;
-      font-size: 0.9em;
+      padding: 12px 20px;
+      border-radius: 25px;
+      font-size: 1em;
       font-weight: bold;
       z-index: 1000;
-      box-shadow: 0 4px 15px rgba(255, 165, 0, 0.3);
+      box-shadow: 0 6px 20px rgba(255, 165, 0, 0.4);
       animation: pulse 2s infinite;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      backdrop-filter: blur(10px);
+      text-align: center;
+      min-width: 200px;
     `;
-    mobileIndicator.innerHTML = `${badgeState.text} PAUSE`;
+    
+    // Ajouter une animation CSS pour le pulse
+    if (!document.querySelector('#mobile-pulse-style')) {
+      const style = document.createElement('style');
+      style.id = 'mobile-pulse-style';
+      style.textContent = `
+        @keyframes pulse {
+          0% { 
+            transform: translateX(-50%) scale(1);
+            box-shadow: 0 6px 20px rgba(255, 165, 0, 0.4);
+          }
+          50% { 
+            transform: translateX(-50%) scale(1.05);
+            box-shadow: 0 8px 25px rgba(255, 165, 0, 0.6);
+          }
+          100% { 
+            transform: translateX(-50%) scale(1);
+            box-shadow: 0 6px 20px rgba(255, 165, 0, 0.4);
+          }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+    
+    mobileIndicator.innerHTML = `🚫 SHORTS BLOQUÉS${timeText}`;
     
     document.body.appendChild(mobileIndicator);
     
-    // Supprimer l'indicateur après 5 secondes
+    // Supprimer l'indicateur après 8 secondes (plus long pour mobile)
     setTimeout(() => {
-      if (mobileIndicator) {
+      if (mobileIndicator && mobileIndicator.parentNode) {
         mobileIndicator.remove();
       }
-    }, 5000);
+    }, 8000);
   }
 }
 

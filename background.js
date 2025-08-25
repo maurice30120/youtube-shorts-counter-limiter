@@ -115,16 +115,27 @@ async function redirectToYouTube(tabId, url) {
     let newUrl;
 
     if (platformInfo.os === 'android' || platformInfo.os === 'ios') {
-      // Mobile OS: Redirect to mobile YouTube feed
-      newUrl = 'https://m.youtube.com/feed/subscriptions'; // Or trending, etc.
+      // Mobile OS: Redirect to mobile YouTube main page
+      newUrl = 'https://m.youtube.com/';
       addDebugLog(`Redirection mobile: ${url} -> ${newUrl}`);
     } else {
-      // Desktop OS: Redirect to main YouTube page (or try to find full video URL)
-      // For now, keep it simple: redirect to main YouTube
-      newUrl = url.replace(/\/shorts\/[^\/]+/, '');
+      // Desktop OS: Redirect to main YouTube page
+      newUrl = url.replace(/\/shorts\/[^\/]+/, '') || 'https://www.youtube.com';
       addDebugLog(`Redirection desktop: ${url} -> ${newUrl}`);
     }
-    browser.tabs.update(tabId, { url: newUrl });
+    
+    try {
+      await browser.tabs.update(tabId, { url: newUrl });
+    } catch (error) {
+      console.error(`Erreur redirection tab ${tabId}:`, error);
+      // Fallback: notification si redirection échoue
+      browser.notifications.create({
+        type: "basic",
+        iconUrl: "icon48.png",
+        title: "Redirection échouée",
+        message: "Impossible de rediriger. Veuillez naviguer manuellement."
+      });
+    }
   }
 }
 
@@ -187,6 +198,15 @@ browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
       return;
     }
     if (isShortsUrl(changeInfo.url)) {
+      // Vérifier si nous sommes en pause active
+      if (pauseUntil > 0 && Date.now() < pauseUntil) {
+        // Pause active - bloquer l'accès et rediriger/notifier l'utilisateur
+        const remainingMinutes = Math.ceil((pauseUntil - Date.now()) / (60 * 1000));
+        applyPauseBlocking(tabId, changeInfo.url, remainingMinutes, getStorage, updateBadge, redirectToYouTube);
+        addDebugLog(`Blocage pause mobile: ${changeInfo.url}, ${remainingMinutes} min restantes`);
+        return;
+      }
+      
       if (!countedUrls.has(changeInfo.url)) {
         countedUrls.set(changeInfo.url, Date.now());
         incrementCounter(

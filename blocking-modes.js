@@ -76,7 +76,8 @@ class BlockingStrategies {
     let redirectUrl;
     
     if (isMobile) {
-      redirectUrl = 'https://m.youtube.com';
+      // Amélioration mobile: redirection vers la page principale mobile avec fallback
+      redirectUrl = 'https://m.youtube.com/';
       console.log(`Mobile redirection: ${originalUrl} -> ${redirectUrl}`);
     } else {
       const alternatives = await this.getSmartAlternatives();
@@ -86,6 +87,18 @@ class BlockingStrategies {
     
     try {
       await browser.tabs.update(tabId, { url: redirectUrl });
+      
+      // Notification de confirmation pour mobile (plus visible)
+      if (isMobile) {
+        browser.notifications.create('mobile-redirect-notification', {
+          type: "basic",
+          iconUrl: "icon48.png",
+          title: "🚫 Shorts bloqués",
+          message: "Redirection vers YouTube principal. Pause en cours.",
+          priority: 2, // Haute priorité pour mobile
+          requireInteraction: false
+        });
+      }
     } catch (error) {
       console.error(`Failed to redirect tab ${tabId}:`, error);
       // Fallback notification if redirection fails
