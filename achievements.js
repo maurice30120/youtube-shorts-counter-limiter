@@ -3,7 +3,7 @@
  * Objet contenant la définition des achievements disponibles.
  * @type {Object}
  */
-export const achievements = {
+const achievements = {
   FIRST_DAY: {
     id: 'first_day',
     name: 'Premier Jour',
@@ -40,7 +40,7 @@ export const achievements = {
  * Vérifie et débloque les achievements selon l'état actuel du streak et des compteurs.
  * @returns {Promise<void>}
  */
-export async function checkAchievements(getStorage, unlockAchievement) {
+async function checkAchievements(getStorage, unlockAchievement) {
   const result = await getStorage([
     'currentStreak',
     'unlockedAchievements',
@@ -75,7 +75,7 @@ export async function checkAchievements(getStorage, unlockAchievement) {
  * @param {Function} setStorage
  * @returns {Promise<void>}
  */
-export async function unlockAchievement(achievementId, getStorage, setStorage) {
+async function unlockAchievement(achievementId, getStorage, setStorage) {
   const result = await getStorage('unlockedAchievements');
   const unlocked = result.unlockedAchievements || [];
   if (!unlocked.includes(achievementId)) {

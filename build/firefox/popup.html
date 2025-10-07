@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 420px;
+      max-height: 600px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+      overflow-y: auto;
+      overflow-x: hidden;
+      margin: 0;
+      padding: 0;
+    }
+
+    .glass-container {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 20px;
+      padding: 25px;
+      margin: 15px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      max-height: calc(600px - 30px);
+      overflow-y: auto;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 25px;
+    }
+
+    .header h3 {
+      font-size: 1.5em;
+      font-weight: 300;
+      margin-bottom: 10px;
+      background: linear-gradient(45deg, #fff, #e0e0e0);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .counter-section {
+      text-align: center;
+      margin: 25px 0;
+    }
+
+    .counter {
+      font-size: 3.5em;
+      font-weight: 700;
+      background: linear-gradient(45deg, #ff6b6b, #feca57);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-shadow: 0 0 30px rgba(255, 107, 107, 0.3);
+      margin-bottom: 10px;
+    }
+
+    .counter-label {
+      font-size: 0.9em;
+      opacity: 0.8;
+      font-weight: 300;
+    }
+
+    .settings-section {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 15px;
+      padding: 20px;
+      margin: 20px 0;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .settings h4 {
+      font-size: 1.1em;
+      font-weight: 500;
+      margin-bottom: 15px;
+      color: #fff;
+      opacity: 0.9;
+    }
+
+    .input-group {
+      margin-bottom: 15px;
+    }
+
+    .settings label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 0.9em;
+      opacity: 0.8;
+      font-weight: 400;
+    }
+
+    .settings input {
+      width: 80px;
+      padding: 10px 12px;
+      border: none;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      font-size: 0.9em;
+      transition: all 0.3s ease;
+    }
+
+    .settings input:focus {
+      outline: none;
+      background: rgba(255, 255, 255, 0.15);
+      border-color: rgba(255, 255, 255, 0.4);
+      box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+    }
+
+    .settings input::placeholder {
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    .settings select {
+      width: 100%;
+      padding: 10px 12px;
+      border: none;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      font-size: 0.9em;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+
+    .settings select:focus {
+      outline: none;
+      background: rgba(255, 255, 255, 0.15);
+      border-color: rgba(255, 255, 255, 0.4);
+      box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+    }
+
+    .settings select option {
+      background: rgba(30, 30, 50, 0.95);
+      color: #fff;
+      padding: 10px;
+    }
+
+    .btn {
+      background: linear-gradient(45deg, #4facfe, #00f2fe);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 25px;
+      cursor: pointer;
+      font-size: 0.9em;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      margin: 5px;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px rgba(79, 172, 254, 0.3);
+      background: linear-gradient(45deg, #00f2fe, #4facfe);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn-reset {
+      background: linear-gradient(45deg, #ff6b6b, #ee5a52);
+    }
+
+    .btn-reset:hover {
+      background: linear-gradient(45deg, #ee5a52, #ff6b6b);
+      box-shadow: 0 10px 25px rgba(255, 107, 107, 0.3);
+    }
+
+    .current-limit {
+      font-size: 0.8em;
+      opacity: 0.7;
+      margin-top: 10px;
+      text-align: center;
+    }
+
+    .button-group {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 15px;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+      margin: 15px 0;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(45deg, #ff6b6b, #feca57);
+      border-radius: 3px;
+      transition: width 0.3s ease;
+      width: 0%;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 15px 0;
+    }
+
+    .stat-card {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 10px;
+      padding: 12px;
+      text-align: center;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .stat-value {
+      font-size: 1.2em;
+      font-weight: 600;
+      color: #4facfe;
+    }
+
+    .stat-label {
+      font-size: 0.8em;
+      opacity: 0.7;
+      margin-top: 4px;
+    }
+
+    .chart-container {
+      height: 200px;
+      margin: 20px 0;
+      position: relative;
+    }
+
+    .chart-container canvas {
+      max-height: 100%;
+    }
+
+    /* Scrollbar personnalisée pour le design glass */
+    body::-webkit-scrollbar,
+    .glass-container::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    body::-webkit-scrollbar-track,
+    .glass-container::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+    }
+
+    body::-webkit-scrollbar-thumb,
+    .glass-container::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 4px;
+      backdrop-filter: blur(10px);
+    }
+
+    body::-webkit-scrollbar-thumb:hover,
+    .glass-container::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.5);
+    }
+
+    /* Pour Firefox */
+    body,
+    .glass-container {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 255, 255, 0.3) rgba(255, 255, 255, 0.1);
+    }
+
+    /* Achievements Section */
+    .achievements-section {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 15px;
+      padding: 20px;
+      margin: 20px 0;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .achievements-container {
+      display: grid;
+      gap: 10px;
+    }
+
+    .achievement-badge {
+      display: flex;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      transition: all 0.3s ease;
+      animation: slideInFromLeft 0.5s ease;
+    }
+
+    .achievement-badge:hover {
+      background: rgba(255, 255, 255, 0.12);
+      transform: translateX(5px);
+    }
+
+    .achievement-icon {
+      font-size: 1.5em;
+      margin-right: 12px;
+      min-width: 30px;
+      text-align: center;
+    }
+
+    .achievement-info {
+      flex: 1;
+    }
+
+    .achievement-name {
+      font-weight: 600;
+      font-size: 0.9em;
+      color: #4facfe;
+      margin-bottom: 2px;
+    }
+
+    .achievement-desc {
+      font-size: 0.8em;
+      opacity: 0.7;
+      line-height: 1.2;
+    }
+
+    .no-achievements {
+      text-align: center;
+      opacity: 0.6;
+      font-style: italic;
+      padding: 20px;
+      font-size: 0.9em;
+    }
+
+    @keyframes slideInFromLeft {
+      from {
+        transform: translateX(-100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="glass-container">
+    <div class="header">
+      <h3>YouTube Shorts Counter</h3>
+    </div>
+
+    <div class="counter-section">
+      <div class="counter" id="counter">0</div>
+      <div class="counter-label">Shorts vus cette session</div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value" id="today-count">0</div>
+        <div class="stat-label">Aujourd'hui</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="week-total">0</div>
+        <div class="stat-label">Cette semaine</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="current-streak">0</div>
+        <div class="stat-label">🔥 Streak</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="best-streak">0</div>
+        <div class="stat-label">🏆 Record</div>
+      </div>
+    </div>
+
+    <div class="stats-grid" style="grid-template-columns: 1fr;">
+      <div class="stat-card">
+        <div class="stat-value" id="avg-time">--</div>
+        <div class="stat-label">⏱️ Temps moyen / Short</div>
+      </div>
+    </div>
+
+    <div class="chart-container">
+      <canvas id="weekly-chart"></canvas>
+    </div>
+
+    <div class="achievements-section">
+      <h4 style="margin-bottom: 15px; font-size: 1.1em; opacity: 0.9;">🏆 Achievements</h4>
+      <div id="achievements-container" class="achievements-container">
+        <!-- Achievements will be populated by JavaScript -->
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <h4>⚙️ Paramètres</h4>
+      <form id="settings-form">
+        <div class="input-group">
+          <label for="max-shorts">Limite de Shorts par session</label>
+          <input type="number" id="max-shorts" name="max-shorts" min="1" max="100" value="10" placeholder="10">
+        </div>
+        <div class="input-group">
+          <label for="pause-duration">Durée de pause (minutes)</label>
+          <input type="number" id="pause-duration" name="pause-duration" min="1" max="120" value="5" placeholder="5">
+        </div>
+        <div class="input-group">
+          <label for="blocking-mode">Mode de blocage</label>
+          <select id="blocking-mode" name="blocking-mode">
+            <option value="gentle">🌸 Mode Doux - Notification simple</option>
+            <option value="standard" selected>⚡ Mode Standard - Blocage + pause temporaire</option>
+            <option value="strict">🔒 Mode Strict - Blocage total + alternatives</option>
+            <option value="adaptive">🤖 Mode Adaptatif - S'adapte à vos habitudes</option>
+          </select>
+        </div>
+        <div class="button-group">
+          <button type="submit" class="btn">💾 Sauvegarder</button>
+          <button type="button" id="reset-counter" class="btn btn-reset">🔄 Reset</button>
+        </div>
+      </form>
+      <div class="current-limit">
+        <p id="current-limit">Limite: 10 shorts</p>
+        <p id="current-pause">Pause: 5 minutes</p>
+        <p id="current-mode">Mode: Standard</p>
+      </div>
+    </div>
+
+    <div style="margin-top: 20px;">
+      <h4 style="margin-bottom: 10px; font-size: 1em; opacity: 0.8;">📊 Temps de visionnage</h4>
+      <div class="chart-container">
+        <canvas id="watch-time-chart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script src="chart.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

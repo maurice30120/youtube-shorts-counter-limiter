@@ -216,3 +216,100 @@ Cette roadmap présente les 10 améliorations prioritaires identifiées pour tra
     -   Mode "admin" avec mot de passe pour verrouiller les paramètres.
 -   **Contrôle Parental**
     -   Interface administrateur pour les parents avec rapports par email.
+
+---
+
+## 🛠️ Plan d’action détaillé et découpage technique
+
+### 1. Achievements & Analytics
+- Modules : achievements.js, popup.js, chart.js, tests/achievements.test.js
+- Actions : enrichir la structure, ajouter des badges, progression, tests, analytics visuelles
+
+### 2. Modes de blocage adaptatifs
+- Modules : blocking-modes.js, popup.js, background.js, tests/blocking-modes.test.js
+- Actions : moteur de règles, UI de configuration, mode pause motivante, tests
+
+### 3. Notifications intelligentes
+- Modules : notifications.js (nouveau), background.js, tests/notifications.test.js
+- Actions : centraliser l’envoi, personnaliser, anti-spam, triggers métiers
+
+### 4. Thèmes & personnalisation
+- Modules : themes.js (nouveau), popup.js, background.js, tests/themes.test.js
+- Actions : structure de thèmes, sélecteur UI, application dynamique, tests d’UI
+
+### 5. Synchronisation multi-appareils
+- Modules : storage.js (nouveau), background.js, popup.js, tests/storage.test.js
+- Actions : abstraction storage, gestion des conflits, migration, option UI
+
+### Exemples d’API de modules
+
+**notifications.js**
+```js
+export function sendNotification(type, context) { /* ... */ }
+export function shouldNotify(type, context) { /* ... */ }
+```
+
+**themes.js**
+```js
+export const THEMES = { dark: {...}, light: {...}, ... };
+export function applyTheme(themeName) { /* ... */ }
+```
+
+**storage.js**
+```js
+export function get(key, sync = false) { /* ... */ }
+export function set(obj, sync = false) { /* ... */ }
+```
+
+### Schéma d’architecture (Mermaid)
+
+```mermaid
+graph TD;
+  A[background.js]
+  B[achievements.js]
+  C[counter.js]
+  D[watchTime.js]
+  E[blocking.js]
+  F[improvements.js]
+  G[blocking-modes.js]
+  H[popup.js]
+  I[public/manifest.json]
+  N[notifications.js]
+  T[themes.js]
+  S[storage.js]
+
+  A -->|import| B
+  A -->|import| C
+  A -->|import| D
+  A -->|import| E
+  A -->|import| F
+  A -->|import| G
+  A -->|import| N
+  A -->|import| T
+  A -->|import| S
+  H -->|utilise API| A
+  I -->|déclare| A
+
+  subgraph Modules principaux
+    B
+    C
+    D
+    E
+    N
+    T
+    S
+  end
+
+  subgraph UI
+    H
+  end
+
+  subgraph Config
+    I
+  end
+
+  subgraph Legacy/Améliorations
+    F
+    G
+  end
+```

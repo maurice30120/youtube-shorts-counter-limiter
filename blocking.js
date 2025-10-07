@@ -9,7 +9,7 @@
  * @param {Function} setStorage
  * @param {Function} updateBadge
  */
-export async function applyAdvancedBlocking(newCount, maxShorts, pauseDuration, getStorage, setStorage, updateBadge) {
+async function applyAdvancedBlocking(newCount, maxShorts, pauseDuration, getStorage, setStorage, updateBadge) {
   try {
     const result = await getStorage(['blockingMode']);
     const blockingMode = result.blockingMode || 'standard';
@@ -46,7 +46,7 @@ export async function applyAdvancedBlocking(newCount, maxShorts, pauseDuration, 
  * @param {Function} updateBadge
  * @param {Function} redirectToYouTube
  */
-export async function applyPauseBlocking(tabId, url, remainingMinutes, getStorage, updateBadge, redirectToYouTube) {
+async function applyPauseBlocking(tabId, url, remainingMinutes, getStorage, updateBadge, redirectToYouTube) {
   try {
     const result = await getStorage(['blockingMode']);
     const blockingMode = result.blockingMode || 'standard';

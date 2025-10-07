@@ -4,7 +4,7 @@
  * Map pour stocker les URLs déjà comptées (évite les doublons rapides).
  * @type {Map<string, number>}
  */
-export const countedUrls = new Map();
+const countedUrls = new Map();
 
 /**
  * Incrémente le compteur de Shorts, met à jour le badge, l'historique quotidien et vérifie les achievements.
@@ -17,7 +17,7 @@ export const countedUrls = new Map();
  * @param {Function} checkAndResetStreak
  * @param {Function} applyAdvancedBlocking
  */
-export function incrementCounter(getStorage, setStorage, updateBadge, startWatchTimer, endWatchTimer, checkAchievements, checkAndResetStreak, applyAdvancedBlocking) {
+function incrementCounter(getStorage, setStorage, updateBadge, startWatchTimer, endWatchTimer, checkAchievements, checkAndResetStreak, applyAdvancedBlocking) {
   getStorage(['shortsCount', 'maxShorts', 'pauseDuration', 'dailyCounts']).then((result) => {
     const newCount = (result.shortsCount || 0) + 1;
     const currentMaxShorts = result.maxShorts || 10;
@@ -28,7 +28,9 @@ export function incrementCounter(getStorage, setStorage, updateBadge, startWatch
     const dailyCounts = result.dailyCounts || {};
     dailyCounts[today] = (dailyCounts[today] || 0) + 1;
     dataToStore.dailyCounts = dailyCounts;
-    setStorage(dataToStore);
+    setStorage(dataToStore).catch((error) => {
+      console.error('Erreur lors de la sauvegarde du compteur:', error);
+    });
     startWatchTimer();
     checkAchievements();
     if (newCount >= currentMaxShorts) {
@@ -36,6 +38,8 @@ export function incrementCounter(getStorage, setStorage, updateBadge, startWatch
       checkAndResetStreak();
       applyAdvancedBlocking(newCount, currentMaxShorts, currentPauseDuration);
     }
+  }).catch((error) => {
+    console.error('Erreur lors de l\'incrémentation du compteur:', error);
   });
 }
 
@@ -44,9 +48,20 @@ export function incrementCounter(getStorage, setStorage, updateBadge, startWatch
  * @param {Function} setStorage
  * @param {Function} updateBadge
  */
-export function resetCounter(setStorage, updateBadge) {
-  setStorage({ shortsCount: 0, pauseUntil: 0 });
-  updateBadge('counting', 0);
+function resetCounter(setStorage, updateBadge) {
+  // Nettoyer la Map des URLs comptées
+  countedUrls.clear();
+  
+  // Réinitialiser le compteur de session et la pause
+  setStorage({ 
+    shortsCount: 0, 
+    pauseUntil: 0 
+  }).then(() => {
+    updateBadge('counting', 0);
+    console.log('Compteur réinitialisé avec succès');
+  }).catch((error) => {
+    console.error('Erreur lors de la réinitialisation:', error);
+  });
 }
 
 /**
@@ -54,7 +69,7 @@ export function resetCounter(setStorage, updateBadge) {
  * @param {Function} getStorage
  * @param {Function} setStorage
  */
-export function checkAndResetStreak(getStorage, setStorage) {
+function checkAndResetStreak(getStorage, setStorage) {
   getStorage(['maxShorts', 'dailyCounts', 'currentStreak']).then((result) => {
     const maxShorts = result.maxShorts || 10;
     const dailyCounts = result.dailyCounts || {};

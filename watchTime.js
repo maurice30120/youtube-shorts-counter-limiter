@@ -4,14 +4,14 @@
  * Objet pour suivre le temps de visionnage par tabId.
  * @type {Object<number, number>}
  */
-export const activeYouTubeTabs = {};
+const activeYouTubeTabs = {};
 
 let shortStartTime = null;
 
 /**
  * Démarre le timer de visionnage d'un Short.
  */
-export function startWatchTimer() {
+function startWatchTimer() {
   shortStartTime = Date.now();
 }
 
@@ -19,7 +19,7 @@ export function startWatchTimer() {
  * Termine le timer de visionnage d'un Short et ajoute la durée au total.
  * @param {Function} addWatchTime
  */
-export function endWatchTimer(addWatchTime) {
+function endWatchTimer(addWatchTime) {
   if (shortStartTime) {
     const watchDuration = Date.now() - shortStartTime;
     addWatchTime(watchDuration);
@@ -34,7 +34,7 @@ export function endWatchTimer(addWatchTime) {
  * @param {Function} setStorage
  * @param {Function} calculateAverageWatchTime
  */
-export function addWatchTime(duration, getStorage, setStorage, calculateAverageWatchTime) {
+function addWatchTime(duration, getStorage, setStorage, calculateAverageWatchTime) {
   getStorage(['dailyWatchTime', 'totalWatchTime']).then((result) => {
     const today = (new Date()).toISOString().slice(0, 10);
     const dailyWatchTime = result.dailyWatchTime || {};
@@ -53,7 +53,7 @@ export function addWatchTime(duration, getStorage, setStorage, calculateAverageW
  * @param {Function} getStorage
  * @param {Function} setStorage
  */
-export function calculateAverageWatchTime(getStorage, setStorage) {
+function calculateAverageWatchTime(getStorage, setStorage) {
   getStorage(['dailyWatchTime', 'dailyCounts']).then((result) => {
     const dailyWatchTime = result.dailyWatchTime || {};
     const dailyCounts = result.dailyCounts || {};
@@ -76,7 +76,7 @@ export function calculateAverageWatchTime(getStorage, setStorage) {
  * @param {Function} setStorage
  * @param {Function} addDebugLog
  */
-export async function processWatchTime(tabId, endTime, getStorage, setStorage, addDebugLog) {
+async function processWatchTime(tabId, endTime, getStorage, setStorage, addDebugLog) {
   if (activeYouTubeTabs[tabId]) {
     const startTime = activeYouTubeTabs[tabId];
     const duration = endTime - startTime;

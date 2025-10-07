@@ -189,14 +189,20 @@ function saveSettings(event) {
 }
 
 function handleReset() {
-    browser.runtime.sendMessage({ action: 'resetCounter' });
-    // Fournir un retour visuel immédiat
-    document.getElementById('counter').textContent = '0';
-    const progressFill = document.getElementById('progress-fill');
-    if (progressFill) {
-      progressFill.style.width = '0%';
-    }
-    updateStats();
+    browser.runtime.sendMessage({ action: 'resetCounter' }, (response) => {
+        if (response && response.success) {
+            // Fournir un retour visuel immédiat
+            document.getElementById('counter').textContent = '0';
+            const progressFill = document.getElementById('progress-fill');
+            if (progressFill) {
+                progressFill.style.width = '0%';
+            }
+            updateStats();
+            console.log('Reset confirmé:', response.message);
+        } else {
+            console.error('Erreur lors du reset');
+        }
+    });
 }
 
 function renderWeeklyChart() {
